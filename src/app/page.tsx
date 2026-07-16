@@ -177,6 +177,18 @@ const EDITIONS: Edition[] = [
     lineUp: 'Sammie Kiss, DJ Fletzy',
     flyerKeyword: 'big bang monday',
   },
+  {
+    key: 'the-last-dance',
+    title: 'The Last Dance',
+    dateKey: '2026-07-20',
+    dateLabel: 'Monday, July 20, 2026',
+    time: '9 PM till Sunrise',
+    venue: 'Champions Cottage, FUOYE Phase 1 Road, Oye-Ekiti',
+    ticket: 'Walk in Free',
+    cabana: 'Strictly by Reservation',
+    lineUp: 'DJ Fletzy, DJ Virtual',
+    flyerKeyword: 'the last dance',
+  },
 ]
 
 function getLagosDateKey() {
