@@ -201,6 +201,18 @@ const EDITIONS: Edition[] = [
     lineUp: 'DJ Fletzy, DJ Virtual, Sammie Kiss, Avatar',
     flyerKeyword: 'lights out',
   },
+  {
+    key: 'back-to-the-groove',
+    title: 'Back to the Groove',
+    dateKey: '2026-09-28',
+    dateLabel: 'Monday, September 28, 2026',
+    time: '9 PM till Sunrise',
+    venue: 'Champions Cottage, FUOYE Phase 1 Road, Oye-Ekiti',
+    ticket: 'Walk in Free',
+    cabana: 'Strictly by Reservation',
+    lineUp: 'Avatar, Sammie Kiss, DJ Virtual',
+    flyerKeyword: 'back to the groove',
+  },
 ]
 
 function getLagosDateKey() {
