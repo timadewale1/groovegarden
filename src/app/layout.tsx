@@ -69,11 +69,16 @@ function IndependenceTheme() {
       const lookup = Object.fromEntries(parts.map(part => [part.type, part.value]))
       const dateKey = `${lookup.year}-${lookup.month}-${lookup.day}`
       const isIndependenceWeek = dateKey >= '2026-09-30' && dateKey <= '2026-10-05'
+      const wasGreetingDismissed = document.documentElement.dataset.independenceGreeting === 'dismissed'
 
       if (isIndependenceWeek) {
         document.documentElement.dataset.theme = 'independence'
+        if (!wasGreetingDismissed) {
+          document.documentElement.dataset.independenceGreeting = 'show'
+        }
       } else {
         delete document.documentElement.dataset.theme
+        delete document.documentElement.dataset.independenceGreeting
       }
     }
 
@@ -82,7 +87,44 @@ function IndependenceTheme() {
     return () => window.clearInterval(interval)
   }, [])
 
-  return null
+  const dismissGreeting = () => {
+    document.documentElement.dataset.independenceGreeting = 'dismissed'
+  }
+
+  return (
+    <div className="independence-welcome" aria-live="polite" aria-atomic="true">
+      <div className="independence-confetti" aria-hidden="true">
+        {Array.from({ length: 36 }, (_, index) => (
+          <span
+            key={index}
+            className="independence-confetti-piece"
+            style={{
+              left: `${(index * 37) % 100}%`,
+              animationDelay: `${-((index * 13) % 8)}s`,
+              animationDuration: `${7 + (index % 6)}s`,
+              '--confetti-drift': `${(index % 2 ? 1 : -1) * (24 + (index % 8) * 8)}px`,
+              background: index % 3 === 1 ? '#ffffff' : '#008751',
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
+      <div className="independence-welcome-message">
+        <span className="independence-flag" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+        <div className="independence-welcome-copy">
+          <strong>Happy Independence Day, Nigeria!</strong>
+          <span>Celebrating 66 years of freedom, unity, and culture.</span>
+        </div>
+        <button type="button" className="btn btn-fire independence-welcome-dismiss" onClick={dismissGreeting} title="Dismiss greeting">
+          <span>Let&apos;s groove</span>
+          <FiArrowRight size={13} />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 /* ── NAVBAR ──────────────────────────────────────────────── */
