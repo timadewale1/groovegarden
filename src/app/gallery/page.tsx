@@ -108,12 +108,12 @@ function PageHeader({ count }: { count: number }) {
       <div className="absolute inset-0 pointer-events-none" style={{
         background: [
           'radial-gradient(ellipse 70% 80% at 10% 30%, rgba(13,59,26,0.5) 0%, transparent 65%)',
-          'radial-gradient(ellipse 50% 60% at 90% 70%, rgba(232,93,4,0.07) 0%, transparent 60%)',
+          'radial-gradient(ellipse 50% 60% at 90% 70%, rgba(var(--fire-rgb),0.07) 0%, transparent 60%)',
         ].join(','),
       }}/>
       <div className="absolute inset-0 pointer-events-none bg-dots" style={{ opacity: 0.4 }}/>
       <div className="absolute left-[clamp(1.5rem,6vw,7rem)] top-0 bottom-0 w-px pointer-events-none"
-        style={{ background: 'linear-gradient(to bottom, transparent, rgba(232,93,4,0.4) 40%, rgba(232,93,4,0.6) 60%, transparent)' }}/>
+        style={{ background: 'linear-gradient(to bottom, transparent, rgba(var(--fire-rgb),0.4) 40%, rgba(var(--fire-rgb),0.6) 60%, transparent)' }}/>
 
       <motion.div style={{ y, opacity: fade }} className="relative z-10 w-full">
         <div className="wrap">
@@ -150,7 +150,7 @@ function PageHeader({ count }: { count: number }) {
                 fontSize: 'clamp(5rem, 15vw, 13rem)',
                 lineHeight: 0.88, letterSpacing: '-0.02em',
                 paddingLeft: 'clamp(2rem, 10vw, 14rem)',
-                filter: 'drop-shadow(0 0 60px rgba(232,93,4,0.3))',
+                filter: 'drop-shadow(0 0 60px rgba(var(--fire-rgb),0.3))',
               }}
             >Gallery</motion.h1>
           </div>
@@ -245,9 +245,9 @@ function Lightbox({
       <button
         onClick={e => { e.stopPropagation(); onPrev() }}
         className="absolute left-4 md:left-8 z-30 w-12 h-12 flex items-center justify-center transition-all duration-300"
-        style={{ border: '1px solid rgba(232,93,4,0.3)', color: 'var(--cream-75)', background: 'rgba(10,15,13,0.7)', backdropFilter: 'blur(8px)', cursor: 'none' }}
+        style={{ border: '1px solid rgba(var(--fire-rgb),0.3)', color: 'var(--cream-75)', background: 'rgba(10,15,13,0.7)', backdropFilter: 'blur(8px)', cursor: 'none' }}
         onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background='var(--fire)'; el.style.color='var(--bg-base)'; el.style.borderColor='var(--fire)' }}
-        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='rgba(10,15,13,0.7)'; el.style.color='var(--cream-75)'; el.style.borderColor='rgba(232,93,4,0.3)' }}
+        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='rgba(10,15,13,0.7)'; el.style.color='var(--cream-75)'; el.style.borderColor='rgba(var(--fire-rgb),0.3)' }}
       >
         <FiArrowLeft size={16}/>
       </button>
@@ -256,9 +256,9 @@ function Lightbox({
       <button
         onClick={e => { e.stopPropagation(); onNext() }}
         className="absolute right-4 md:right-8 z-30 w-12 h-12 flex items-center justify-center transition-all duration-300"
-        style={{ border: '1px solid rgba(232,93,4,0.3)', color: 'var(--cream-75)', background: 'rgba(10,15,13,0.7)', backdropFilter: 'blur(8px)', cursor: 'none' }}
-        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background='var(--fire)'; el.style.color='var(--bg-base)'; el.style.borderColor='rgba(232,93,4,0.3)' }}
-        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='rgba(10,15,13,0.7)'; el.style.color='var(--cream-75)'; el.style.borderColor='rgba(232,93,4,0.3)' }}
+        style={{ border: '1px solid rgba(var(--fire-rgb),0.3)', color: 'var(--cream-75)', background: 'rgba(10,15,13,0.7)', backdropFilter: 'blur(8px)', cursor: 'none' }}
+        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background='var(--fire)'; el.style.color='var(--bg-base)'; el.style.borderColor='rgba(var(--fire-rgb),0.3)' }}
+        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='rgba(10,15,13,0.7)'; el.style.color='var(--cream-75)'; el.style.borderColor='rgba(var(--fire-rgb),0.3)' }}
       >
         <FiArrowRight size={16}/>
       </button>
@@ -346,7 +346,7 @@ function Pagination({
         disabled={current === 1}
         className="w-10 h-10 flex items-center justify-center transition-all duration-250"
         style={{
-          border: '1px solid rgba(232,93,4,0.25)',
+          border: '1px solid rgba(var(--fire-rgb),0.25)',
           color: current === 1 ? 'rgba(240,235,224,0.2)' : 'var(--cream-40)',
           background: 'transparent',
           cursor: current === 1 ? 'not-allowed' : 'none',
@@ -378,7 +378,7 @@ function Pagination({
                 cursor: 'none',
                 clipPath: current === n ? 'polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)' : 'none',
               }}
-              onMouseEnter={e => { if (current !== n) { const el = e.currentTarget as HTMLElement; el.style.background='rgba(232,93,4,0.12)'; el.style.color='var(--fire-bright)'; el.style.borderColor='rgba(232,93,4,0.35)' }}}
+              onMouseEnter={e => { if (current !== n) { const el = e.currentTarget as HTMLElement; el.style.background='rgba(var(--fire-rgb),0.12)'; el.style.color='var(--fire-bright)'; el.style.borderColor='rgba(var(--fire-rgb),0.35)' }}}
               onMouseLeave={e => { if (current !== n) { const el = e.currentTarget as HTMLElement; el.style.background='transparent'; el.style.color='var(--cream-40)'; el.style.borderColor='rgba(240,235,224,0.1)' }}}
             >
               {n}
@@ -392,7 +392,7 @@ function Pagination({
         disabled={current === pages}
         className="w-10 h-10 flex items-center justify-center transition-all duration-250"
         style={{
-          border: '1px solid rgba(232,93,4,0.25)',
+          border: '1px solid rgba(var(--fire-rgb),0.25)',
           color: current === pages ? 'rgba(240,235,224,0.2)' : 'var(--cream-40)',
           background: 'transparent',
           cursor: current === pages ? 'not-allowed' : 'none',
@@ -638,7 +638,7 @@ function VideoGrid({ videos }: { videos: Video[] }) {
                           className="flex flex-col items-center gap-3"
                         >
                           <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                            style={{ border: '2px solid rgba(232,93,4,0.7)', background: 'rgba(10,15,13,0.55)', backdropFilter: 'blur(12px)' }}>
+                            style={{ border: '2px solid rgba(var(--fire-rgb),0.7)', background: 'rgba(10,15,13,0.55)', backdropFilter: 'blur(12px)' }}>
                             <FiPlay size={20} style={{ color: 'var(--fire-bright)', marginLeft: 3 }}/>
                           </div>
                         </motion.div>
@@ -746,7 +746,7 @@ function Controls({
               className="w-9 h-9 flex items-center justify-center transition-all duration-250"
               style={{
                 border: `1px solid ${layout === key ? 'var(--fire)' : 'rgba(240,235,224,0.1)'}`,
-                background: layout === key ? 'rgba(232,93,4,0.15)' : 'transparent',
+                background: layout === key ? 'rgba(var(--fire-rgb),0.15)' : 'transparent',
                 color: layout === key ? 'var(--fire-bright)' : 'var(--cream-40)',
                 cursor: 'none',
               }}
@@ -765,7 +765,7 @@ function SectionDivider({ label }: { label: string }) {
       <span style={{ fontFamily: 'var(--f-mono)', fontSize: '0.58rem', letterSpacing: '0.28em', color: 'var(--fire-bright)', textTransform: 'uppercase', flexShrink: 0 }}>
         {label}
       </span>
-      <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(232,93,4,0.3),transparent)' }}/>
+      <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(var(--fire-rgb),0.3),transparent)' }}/>
     </div>
   )
 }
@@ -835,7 +835,7 @@ export default function GalleryPage() {
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 1.1, ease: 'linear' }}
                 className="w-10 h-10 rounded-full"
-                style={{ border: '2px solid rgba(232,93,4,0.15)', borderTopColor: 'var(--fire)' }}
+                style={{ border: '2px solid rgba(var(--fire-rgb),0.15)', borderTopColor: 'var(--fire)' }}
               />
               <p style={{ fontFamily: 'var(--f-mono)', fontSize: '0.58rem', letterSpacing: '0.25em', color: 'var(--cream-40)' }}>
                 LOADING MEDIA...

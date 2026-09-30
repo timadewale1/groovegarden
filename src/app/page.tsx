@@ -213,6 +213,18 @@ const EDITIONS: Edition[] = [
     lineUp: 'Avatar, Sammie Kiss, DJ Virtual',
     flyerKeyword: 'back to the groove',
   },
+  {
+    key: 'freedom-and-groove',
+    title: 'Freedom & Redemption',
+    dateKey: '2026-10-05',
+    dateLabel: 'Monday, October 5, 2026',
+    time: '9 PM till Sunrise',
+    venue: 'Champions Cottage, FUOYE Phase 1 Road, Oye-Ekiti',
+    ticket: 'Walk in Free',
+    cabana: 'Strictly by Reservation',
+    lineUp: 'Avatar, Sammie Kiss, DJ Virtual',
+    flyerKeyword: 'freedom',
+  },
 ]
 
 function getLagosDateKey() {
@@ -349,7 +361,7 @@ function Hero() {
       <div className="absolute inset-0 pointer-events-none" style={{
         background: [
           'radial-gradient(ellipse 70% 60% at 15% 40%, rgba(13,59,26,0.55) 0%, transparent 65%)',
-          'radial-gradient(ellipse 50% 50% at 85% 60%, rgba(232,93,4,0.12) 0%, transparent 60%)',
+          'radial-gradient(ellipse 50% 50% at 85% 60%, rgba(var(--fire-rgb),0.12) 0%, transparent 60%)',
           'radial-gradient(ellipse 60% 40% at 50% 100%, rgba(45,106,79,0.18) 0%, transparent 60%)',
         ].join(','),
       }} />
@@ -416,7 +428,7 @@ function Hero() {
 
       {/* Vertical fire line left */}
       <div className="absolute left-[clamp(1.5rem,6vw,7rem)] top-0 bottom-0 w-[1px] pointer-events-none"
-        style={{ background: 'linear-gradient(to bottom, transparent 10%, rgba(232,93,4,0.35) 40%, rgba(232,93,4,0.6) 60%, transparent 90%)' }} />
+        style={{ background: 'linear-gradient(to bottom, transparent 10%, rgba(var(--fire-rgb),0.35) 40%, rgba(var(--fire-rgb),0.6) 60%, transparent 90%)' }} />
 
       {/* Parallax content */}
       <motion.div style={{ y: py, opacity: fade }} className="relative z-10 w-full pb-[clamp(4rem,8vw,8rem)]">
@@ -574,7 +586,7 @@ function WhyGrooveGarden() {
       <div className="absolute inset-0 pointer-events-none" style={{
         background: [
           'radial-gradient(ellipse 55% 70% at 15% 40%, rgba(13,59,26,0.28) 0%, transparent 70%)',
-          'radial-gradient(ellipse 45% 55% at 85% 60%, rgba(232,93,4,0.08) 0%, transparent 65%)',
+          'radial-gradient(ellipse 45% 55% at 85% 60%, rgba(var(--fire-rgb),0.08) 0%, transparent 65%)',
         ].join(','),
       }} />
 
@@ -622,7 +634,7 @@ function WhyGrooveGarden() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: '1px solid rgba(232,93,4,0.35)',
+                  border: '1px solid rgba(var(--fire-rgb),0.35)',
                   color: 'var(--fire-bright)',
                   fontFamily: 'var(--f-mono)',
                   fontSize: '0.7rem',
@@ -766,7 +778,7 @@ function FlyersCarousel({ flyers }: { flyers: string[] }) {
 
       {/* Ambient */}
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background:'radial-gradient(ellipse 60% 80% at 80% 40%, rgba(232,93,4,0.06) 0%, transparent 65%)' }}/>
+        style={{ background:'radial-gradient(ellipse 60% 80% at 80% 40%, rgba(var(--fire-rgb),0.06) 0%, transparent 65%)' }}/>
 
       <div className="wrap">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-14">
@@ -785,9 +797,9 @@ function FlyersCarousel({ flyers }: { flyers: string[] }) {
             ] as const).map(({d,I},i)=>(
               <button key={i} onClick={()=>scroll(d)}
                 className="w-12 h-12 flex items-center justify-center transition-all duration-300"
-                style={{ border:'1px solid rgba(232,93,4,0.25)', color:'var(--cream-40)', background:'transparent', cursor:'none' }}
+                style={{ border:'1px solid rgba(var(--fire-rgb),0.25)', color:'var(--cream-40)', background:'transparent', cursor:'none' }}
                 onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.background='var(--fire)';el.style.color='var(--bg-base)';el.style.borderColor='var(--fire)'}}
-                onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.background='transparent';el.style.color='var(--cream-40)';el.style.borderColor='rgba(232,93,4,0.25)'}}
+                onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.background='transparent';el.style.color='var(--cream-40)';el.style.borderColor='rgba(var(--fire-rgb),0.25)'}}
               >{I}</button>
             ))}
           </div>
@@ -938,11 +950,11 @@ function VideoSection() {
 
 //             {/* Glow behind flyer */}
 //             <div className="absolute -inset-8 -z-10 rounded-full pointer-events-none"
-//               style={{ background:'radial-gradient(ellipse at center, rgba(232,93,4,0.15) 0%, transparent 70%)', filter:'blur(20px)' }}/>
+//               style={{ background:'radial-gradient(ellipse at center, rgba(var(--fire-rgb),0.15) 0%, transparent 70%)', filter:'blur(20px)' }}/>
 
 //             {/* UPCOMING badge */}
 //             <div className="absolute -top-4 -right-4 px-5 py-2"
-//               style={{ background:'var(--g-fire)', fontFamily:'var(--f-sans)', fontWeight:700, fontSize:'0.58rem', letterSpacing:'0.2em', color:'var(--bg-base)', boxShadow:'0 8px 32px rgba(232,93,4,0.4)' }}>
+//               style={{ background:'var(--g-fire)', fontFamily:'var(--f-sans)', fontWeight:700, fontSize:'0.58rem', letterSpacing:'0.2em', color:'var(--bg-base)', boxShadow:'0 8px 32px rgba(var(--fire-rgb),0.4)' }}>
 //               UPCOMING
 //             </div>
 //           </motion.div>
@@ -979,7 +991,7 @@ function VideoSection() {
 //                 >
 //                   <div className="flex-shrink-0 mt-1" style={{ color:'var(--fire-bright)' }}>{icon}</div>
 //                   <div>
-//                     <p style={{ fontFamily:'var(--f-mono)', fontSize:'0.55rem', letterSpacing:'0.22em', color:'rgba(232,93,4,0.6)', marginBottom:'5px' }}>
+//                     <p style={{ fontFamily:'var(--f-mono)', fontSize:'0.55rem', letterSpacing:'0.22em', color:'rgba(var(--fire-rgb),0.6)', marginBottom:'5px' }}>
 //                       {label.toUpperCase()}
 //                     </p>
 //                     <p style={{ fontFamily:'var(--f-display)', fontWeight:300, fontSize:'1rem', color:'var(--cream)' }}>
@@ -1107,10 +1119,10 @@ function UpcomingEvent({
             </div>
 
             <div className="absolute -inset-8 -z-10 rounded-full pointer-events-none"
-              style={{ background:'radial-gradient(ellipse at center, rgba(232,93,4,0.15) 0%, transparent 70%)', filter:'blur(20px)' }}/>
+              style={{ background:'radial-gradient(ellipse at center, rgba(var(--fire-rgb),0.15) 0%, transparent 70%)', filter:'blur(20px)' }}/>
 
             <div className="absolute -top-4 -right-4 px-5 py-2"
-              style={{ background:'var(--g-fire)', fontFamily:'var(--f-sans)', fontWeight:700, fontSize:'0.58rem', letterSpacing:'0.2em', color:'var(--bg-base)', boxShadow:'0 8px 32px rgba(232,93,4,0.4)' }}>
+              style={{ background:'var(--g-fire)', fontFamily:'var(--f-sans)', fontWeight:700, fontSize:'0.58rem', letterSpacing:'0.2em', color:'var(--bg-base)', boxShadow:'0 8px 32px rgba(var(--fire-rgb),0.4)' }}>
               NEXT EDITION
             </div>
           </motion.div>
@@ -1150,7 +1162,7 @@ function UpcomingEvent({
                 >
                   <div className="flex-shrink-0 mt-1" style={{ color:'var(--fire-bright)' }}>{icon}</div>
                   <div>
-                    <p style={{ fontFamily:'var(--f-mono)', fontSize:'0.55rem', letterSpacing:'0.22em', color:'rgba(232,93,4,0.6)', marginBottom:'5px' }}>
+                    <p style={{ fontFamily:'var(--f-mono)', fontSize:'0.55rem', letterSpacing:'0.22em', color:'rgba(var(--fire-rgb),0.6)', marginBottom:'5px' }}>
                       {label.toUpperCase()}
                     </p>
                     <p style={{ fontFamily:'var(--f-display)', fontWeight:300, fontSize:'1rem', color:'var(--cream)' }}>

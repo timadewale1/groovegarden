@@ -44,7 +44,7 @@ function PageHeader() {
       <div className="absolute inset-0 pointer-events-none" style={{
         background: [
           'radial-gradient(ellipse 60% 70% at 8% 60%,  rgba(13,59,26,0.55) 0%, transparent 65%)',
-          'radial-gradient(ellipse 55% 55% at 92% 25%, rgba(232,93,4,0.09) 0%, transparent 60%)',
+          'radial-gradient(ellipse 55% 55% at 92% 25%, rgba(var(--fire-rgb),0.09) 0%, transparent 60%)',
           'radial-gradient(ellipse 40% 60% at 50% 100%, rgba(45,106,79,0.12) 0%, transparent 60%)',
         ].join(','),
       }}/>
@@ -52,7 +52,7 @@ function PageHeader() {
 
       {/* Left vertical fire line */}
       <div className="absolute left-[clamp(1.5rem,6vw,7rem)] top-0 bottom-0 w-px pointer-events-none"
-        style={{ background: 'linear-gradient(to bottom, transparent, rgba(232,93,4,0.4) 35%, rgba(232,93,4,0.6) 65%, transparent)' }}/>
+        style={{ background: 'linear-gradient(to bottom, transparent, rgba(var(--fire-rgb),0.4) 35%, rgba(var(--fire-rgb),0.6) 65%, transparent)' }}/>
 
       {/* Ghost background word */}
       <div className="absolute bottom-0 right-0 pointer-events-none select-none"
@@ -104,7 +104,7 @@ function PageHeader() {
                 fontSize: 'clamp(5rem, 15vw, 13rem)',
                 lineHeight: 0.88, letterSpacing: '-0.02em',
                 paddingLeft: 'clamp(2rem, 10vw, 14rem)',
-                filter: 'drop-shadow(0 0 60px rgba(232,93,4,0.3))',
+                filter: 'drop-shadow(0 0 60px rgba(var(--fire-rgb),0.3))',
               }}
             >In Touch</motion.h1>
           </div>
@@ -163,8 +163,8 @@ function InquirySelector({
               fontWeight: value === key ? 700 : 400,
               fontSize: '0.65rem',
               letterSpacing: '0.08em',
-              background: value === key ? 'rgba(232,93,4,0.14)' : 'rgba(240,235,224,0.025)',
-              border: `1px solid ${value === key ? 'rgba(232,93,4,0.7)' : 'rgba(240,235,224,0.08)'}`,
+              background: value === key ? 'rgba(var(--fire-rgb),0.14)' : 'rgba(240,235,224,0.025)',
+              border: `1px solid ${value === key ? 'rgba(var(--fire-rgb),0.7)' : 'rgba(240,235,224,0.08)'}`,
               color: value === key ? 'var(--fire-bright)' : 'var(--cream-40)',
               cursor: 'none',
               textAlign: 'left',
@@ -173,7 +173,7 @@ function InquirySelector({
             onMouseEnter={e => {
               if (value !== key) {
                 const el = e.currentTarget as HTMLElement
-                el.style.borderColor = 'rgba(232,93,4,0.35)'
+                el.style.borderColor = 'rgba(var(--fire-rgb),0.35)'
                 el.style.color = 'var(--cream-75)'
                 el.style.background = 'rgba(240,235,224,0.04)'
               }
@@ -213,8 +213,8 @@ function Field({
 
   const sharedStyle: React.CSSProperties = {
     width: '100%',
-    background: focused ? 'rgba(232,93,4,0.05)' : 'rgba(240,235,224,0.025)',
-    border: `1px solid ${focused ? 'rgba(232,93,4,0.7)' : 'rgba(240,235,224,0.09)'}`,
+    background: focused ? 'rgba(var(--fire-rgb),0.05)' : 'rgba(240,235,224,0.025)',
+    border: `1px solid ${focused ? 'rgba(var(--fire-rgb),0.7)' : 'rgba(240,235,224,0.09)'}`,
     color: 'var(--cream)',
     fontFamily: 'var(--f-display)',
     fontWeight: 300,
@@ -229,7 +229,7 @@ function Field({
 
   return (
     <div>
-      <label style={{ fontFamily: 'var(--f-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', color: focused ? 'var(--fire-bright)' : 'rgba(232,93,4,0.6)', display: 'block', marginBottom: '0.65rem', textTransform: 'uppercase', transition: 'color 0.25s' }}>
+      <label style={{ fontFamily: 'var(--f-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', color: focused ? 'var(--fire-bright)' : 'rgba(var(--fire-rgb),0.6)', display: 'block', marginBottom: '0.65rem', textTransform: 'uppercase', transition: 'color 0.25s' }}>
         {label}{required && <span style={{ color: 'var(--fire)', marginLeft: '4px' }}>*</span>}
       </label>
       {textarea ? (
@@ -308,7 +308,7 @@ function ContactForm() {
           <div className="absolute inset-0 rounded-full"
             style={{ border: '2px solid var(--fire)', animation: 'ping-slow 2s ease-out infinite', opacity: 0.3 }}/>
           <div className="w-20 h-20 rounded-full flex items-center justify-center"
-            style={{ border: '2px solid var(--fire)', background: 'rgba(232,93,4,0.1)' }}>
+            style={{ border: '2px solid var(--fire)', background: 'rgba(var(--fire-rgb),0.1)' }}>
             <FiCheck size={28} style={{ color: 'var(--fire-bright)' }}/>
           </div>
         </motion.div>
@@ -469,12 +469,12 @@ function InfoPanel() {
           >
             <div
               className="flex-shrink-0 w-10 h-10 flex items-center justify-center"
-              style={{ border: '1px solid rgba(232,93,4,0.25)', color: 'var(--fire-bright)', background: 'rgba(232,93,4,0.07)' }}
+              style={{ border: '1px solid rgba(var(--fire-rgb),0.25)', color: 'var(--fire-bright)', background: 'rgba(var(--fire-rgb),0.07)' }}
             >
               {icon}
             </div>
             <div>
-              <p style={{ fontFamily: 'var(--f-mono)', fontSize: '0.54rem', letterSpacing: '0.22em', color: 'rgba(232,93,4,0.55)', marginBottom: '5px', textTransform: 'uppercase' }}>
+              <p style={{ fontFamily: 'var(--f-mono)', fontSize: '0.54rem', letterSpacing: '0.22em', color: 'rgba(var(--fire-rgb),0.55)', marginBottom: '5px', textTransform: 'uppercase' }}>
                 {label}
               </p>
               <p style={{ fontFamily: 'var(--f-display)', fontWeight: 300, fontSize: '0.95rem', color: 'var(--cream)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
@@ -507,8 +507,8 @@ function InfoPanel() {
               }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLAnchorElement
-                el.style.borderColor = 'rgba(232,93,4,0.4)'
-                el.style.background  = 'rgba(232,93,4,0.07)'
+                el.style.borderColor = 'rgba(var(--fire-rgb),0.4)'
+                el.style.background  = 'rgba(var(--fire-rgb),0.07)'
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLAnchorElement
@@ -613,8 +613,8 @@ function FAQSection() {
                 onClick={() => setOpen(open === i ? null : i)}
                 className="w-full flex items-center justify-between gap-6 py-6 px-6 text-left transition-all duration-300"
                 style={{
-                  background: open === i ? 'rgba(232,93,4,0.07)' : 'rgba(240,235,224,0.025)',
-                  border: `1px solid ${open === i ? 'rgba(232,93,4,0.35)' : 'rgba(240,235,224,0.07)'}`,
+                  background: open === i ? 'rgba(var(--fire-rgb),0.07)' : 'rgba(240,235,224,0.025)',
+                  border: `1px solid ${open === i ? 'rgba(var(--fire-rgb),0.35)' : 'rgba(240,235,224,0.07)'}`,
                   cursor: 'none',
                   borderLeft: `3px solid ${open === i ? 'var(--fire)' : 'transparent'}`,
                   transition: 'all 0.35s ease',
@@ -622,9 +622,9 @@ function FAQSection() {
                 onMouseEnter={e => {
                   if (open !== i) {
                     const el = e.currentTarget as HTMLElement
-                    el.style.borderColor = 'rgba(232,93,4,0.2)'
+                    el.style.borderColor = 'rgba(var(--fire-rgb),0.2)'
                     el.style.background = 'rgba(240,235,224,0.04)'
-                    el.style.borderLeftColor = 'rgba(232,93,4,0.4)'
+                    el.style.borderLeftColor = 'rgba(var(--fire-rgb),0.4)'
                   }
                 }}
                 onMouseLeave={e => {
@@ -659,7 +659,7 @@ function FAQSection() {
                     style={{ overflow: 'hidden' }}
                   >
                     <div className="px-6 pt-4 pb-6"
-                      style={{ borderLeft: '3px solid var(--fire)', borderRight: '1px solid rgba(232,93,4,0.35)', borderBottom: '1px solid rgba(232,93,4,0.35)', background: 'rgba(232,93,4,0.04)' }}>
+                      style={{ borderLeft: '3px solid var(--fire)', borderRight: '1px solid rgba(var(--fire-rgb),0.35)', borderBottom: '1px solid rgba(var(--fire-rgb),0.35)', background: 'rgba(var(--fire-rgb),0.04)' }}>
                       <p style={{ fontFamily: 'var(--f-display)', fontWeight: 300, fontSize: '1rem', color: 'var(--cream-75)', lineHeight: 1.8 }}>
                         {a}
                       </p>
@@ -710,7 +710,7 @@ export default function ContactPage() {
             {/* Vertical divider */}
             <div className="hidden lg:block lg:col-span-1 relative">
               <div className="absolute left-1/2 top-0 bottom-0 w-px"
-                style={{ background: 'linear-gradient(to bottom, transparent, rgba(232,93,4,0.25) 25%, rgba(232,93,4,0.25) 75%, transparent)' }}/>
+                style={{ background: 'linear-gradient(to bottom, transparent, rgba(var(--fire-rgb),0.25) 25%, rgba(var(--fire-rgb),0.25) 75%, transparent)' }}/>
             </div>
 
             {/* Form - right */}
@@ -730,9 +730,9 @@ export default function ContactPage() {
             >
               {/* Corner accent */}
               <div className="absolute top-0 left-0 w-16 h-16 pointer-events-none"
-                style={{ background: 'linear-gradient(135deg, rgba(232,93,4,0.15) 0%, transparent 60%)' }}/>
+                style={{ background: 'linear-gradient(135deg, rgba(var(--fire-rgb),0.15) 0%, transparent 60%)' }}/>
               <div className="absolute bottom-0 right-0 w-16 h-16 pointer-events-none"
-                style={{ background: 'linear-gradient(315deg, rgba(232,93,4,0.1) 0%, transparent 60%)' }}/>
+                style={{ background: 'linear-gradient(315deg, rgba(var(--fire-rgb),0.1) 0%, transparent 60%)' }}/>
 
               <ContactForm/>
             </motion.div>

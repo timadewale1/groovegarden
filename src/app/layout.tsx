@@ -57,6 +57,34 @@ function Cursor() {
   )
 }
 
+function IndependenceTheme() {
+  useEffect(() => {
+    const updateTheme = () => {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Lagos',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(new Date())
+      const lookup = Object.fromEntries(parts.map(part => [part.type, part.value]))
+      const dateKey = `${lookup.year}-${lookup.month}-${lookup.day}`
+      const isIndependenceWeek = dateKey >= '2026-09-30' && dateKey <= '2026-10-05'
+
+      if (isIndependenceWeek) {
+        document.documentElement.dataset.theme = 'independence'
+      } else {
+        delete document.documentElement.dataset.theme
+      }
+    }
+
+    updateTheme()
+    const interval = window.setInterval(updateTheme, 60_000)
+    return () => window.clearInterval(interval)
+  }, [])
+
+  return null
+}
+
 /* ── NAVBAR ──────────────────────────────────────────────── */
 function Navbar() {
   const path   = usePathname()
@@ -280,7 +308,7 @@ function Footer() {
                 { l: 'Hours',    v: 'Every Monday\n10 PM - Sunrise' },
               ].map(({ l, v }) => (
                 <div key={l}>
-                  <p style={{ fontFamily:'var(--f-mono)', fontSize:'0.54rem', letterSpacing:'0.2em', color:'rgba(232,93,4,0.55)', marginBottom:'5px' }}>
+                  <p style={{ fontFamily:'var(--f-mono)', fontSize:'0.54rem', letterSpacing:'0.2em', color:'rgba(var(--fire-rgb),0.55)', marginBottom:'5px' }}>
                     {l.toUpperCase()}
                   </p>
                   <p style={{ fontFamily:'var(--f-display)', fontWeight:300, fontSize:'0.9rem', color:'var(--cream-75)', lineHeight:1.6, whiteSpace:'pre-line' }}>
@@ -315,6 +343,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="has-noise">
+        <IndependenceTheme />
         <Cursor />
         <Navbar />
         <main>{children}</main>

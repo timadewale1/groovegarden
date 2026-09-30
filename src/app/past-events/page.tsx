@@ -82,7 +82,7 @@ function PageHeader({ total }: { total: number }) {
       {/* Ambient glow */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: [
-          'radial-gradient(ellipse 65% 70% at 90% 20%, rgba(232,93,4,0.1) 0%, transparent 65%)',
+          'radial-gradient(ellipse 65% 70% at 90% 20%, rgba(var(--fire-rgb),0.1) 0%, transparent 65%)',
           'radial-gradient(ellipse 80% 60% at 5% 70%,  rgba(13,59,26,0.45) 0%, transparent 65%)',
           'radial-gradient(ellipse 50% 50% at 50% 100%, rgba(45,106,79,0.1) 0%, transparent 60%)',
         ].join(','),
@@ -94,7 +94,7 @@ function PageHeader({ total }: { total: number }) {
       {/* Right vertical line */}
       <div
         className="absolute right-[clamp(1.5rem,6vw,7rem)] top-0 bottom-0 w-px pointer-events-none"
-        style={{ background: 'linear-gradient(to bottom, transparent, rgba(232,93,4,0.35) 35%, rgba(232,93,4,0.55) 65%, transparent)' }}
+        style={{ background: 'linear-gradient(to bottom, transparent, rgba(var(--fire-rgb),0.35) 35%, rgba(var(--fire-rgb),0.55) 65%, transparent)' }}
       />
 
       {/* Large background text - atmosphere */}
@@ -163,7 +163,7 @@ function PageHeader({ total }: { total: number }) {
                 lineHeight: 0.88,
                 letterSpacing: '-0.02em',
                 paddingLeft: 'clamp(2rem, 12vw, 16rem)',
-                filter: 'drop-shadow(0 0 60px rgba(232,93,4,0.3))',
+                filter: 'drop-shadow(0 0 60px rgba(var(--fire-rgb),0.3))',
               }}
             >
               Events
@@ -286,9 +286,9 @@ function Lightbox({
       <button
         onClick={e => { e.stopPropagation(); onPrev() }}
         className="absolute left-4 md:left-8 z-30 w-12 h-12 flex items-center justify-center transition-all duration-300"
-        style={{ border: '1px solid rgba(232,93,4,0.3)', color: 'var(--cream-75)', background: 'rgba(10,15,13,0.7)', backdropFilter: 'blur(8px)', cursor: 'none' }}
+        style={{ border: '1px solid rgba(var(--fire-rgb),0.3)', color: 'var(--cream-75)', background: 'rgba(10,15,13,0.7)', backdropFilter: 'blur(8px)', cursor: 'none' }}
         onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background='var(--fire)'; el.style.color='var(--bg-base)'; el.style.borderColor='var(--fire)' }}
-        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='rgba(10,15,13,0.7)'; el.style.color='var(--cream-75)'; el.style.borderColor='rgba(232,93,4,0.3)' }}
+        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='rgba(10,15,13,0.7)'; el.style.color='var(--cream-75)'; el.style.borderColor='rgba(var(--fire-rgb),0.3)' }}
       >
         <FiArrowLeft size={16}/>
       </button>
@@ -297,9 +297,9 @@ function Lightbox({
       <button
         onClick={e => { e.stopPropagation(); onNext() }}
         className="absolute right-4 md:right-8 z-30 w-12 h-12 flex items-center justify-center transition-all duration-300"
-        style={{ border: '1px solid rgba(232,93,4,0.3)', color: 'var(--cream-75)', background: 'rgba(10,15,13,0.7)', backdropFilter: 'blur(8px)', cursor: 'none' }}
+        style={{ border: '1px solid rgba(var(--fire-rgb),0.3)', color: 'var(--cream-75)', background: 'rgba(10,15,13,0.7)', backdropFilter: 'blur(8px)', cursor: 'none' }}
         onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background='var(--fire)'; el.style.color='var(--bg-base)'; el.style.borderColor='var(--fire)' }}
-        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='rgba(10,15,13,0.7)'; el.style.color='var(--cream-75)'; el.style.borderColor='rgba(232,93,4,0.3)' }}
+        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='rgba(10,15,13,0.7)'; el.style.color='var(--cream-75)'; el.style.borderColor='rgba(var(--fire-rgb),0.3)' }}
       >
         <FiArrowRight size={16}/>
       </button>
@@ -324,7 +324,7 @@ function Lightbox({
           <div
             className="absolute -inset-6 -z-10 pointer-events-none"
             style={{
-              background: 'radial-gradient(ellipse at center, rgba(232,93,4,0.18) 0%, transparent 70%)',
+              background: 'radial-gradient(ellipse at center, rgba(var(--fire-rgb),0.18) 0%, transparent 70%)',
               filter: 'blur(16px)',
             }}
           />
@@ -394,7 +394,7 @@ function Pagination({
         disabled={current === 1}
         className="w-10 h-10 flex items-center justify-center transition-all duration-250"
         style={{
-          border: '1px solid rgba(232,93,4,0.22)',
+          border: '1px solid rgba(var(--fire-rgb),0.22)',
           color: current === 1 ? 'rgba(240,235,224,0.18)' : 'var(--cream-40)',
           background: 'transparent', cursor: current === 1 ? 'not-allowed' : 'none',
           opacity: current === 1 ? 0.35 : 1,
@@ -419,7 +419,7 @@ function Pagination({
                 fontWeight: current===n ? 700 : 400, cursor: 'none',
                 clipPath: current===n ? 'polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)' : 'none',
               }}
-              onMouseEnter={e => { if (current!==n) { const el=e.currentTarget as HTMLElement; el.style.background='rgba(232,93,4,0.12)'; el.style.color='var(--fire-bright)'; el.style.borderColor='rgba(232,93,4,0.35)' }}}
+              onMouseEnter={e => { if (current!==n) { const el=e.currentTarget as HTMLElement; el.style.background='rgba(var(--fire-rgb),0.12)'; el.style.color='var(--fire-bright)'; el.style.borderColor='rgba(var(--fire-rgb),0.35)' }}}
               onMouseLeave={e => { if (current!==n) { const el=e.currentTarget as HTMLElement; el.style.background='transparent'; el.style.color='var(--cream-40)'; el.style.borderColor='rgba(240,235,224,0.1)' }}}
             >
               {n}
@@ -433,7 +433,7 @@ function Pagination({
         disabled={current === pages}
         className="w-10 h-10 flex items-center justify-center transition-all duration-250"
         style={{
-          border: '1px solid rgba(232,93,4,0.22)',
+          border: '1px solid rgba(var(--fire-rgb),0.22)',
           color: current===pages ? 'rgba(240,235,224,0.18)' : 'var(--cream-40)',
           background: 'transparent', cursor: current===pages ? 'not-allowed' : 'none',
           opacity: current===pages ? 0.35 : 1,
@@ -636,7 +636,7 @@ function UpcomingCTA() {
       <div className="wrap">
         <div className="flex flex-col md:flex-row items-center justify-between gap-10 py-8 px-8 md:px-14"
           style={{
-            border: '1px solid rgba(232,93,4,0.15)',
+            border: '1px solid rgba(var(--fire-rgb),0.15)',
             background: 'rgba(240,235,224,0.02)',
             position: 'relative',
             overflow: 'hidden',
@@ -644,7 +644,7 @@ function UpcomingCTA() {
         >
           {/* Ambient glow */}
           <div className="absolute inset-0 pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse 60% 100% at 80% 50%, rgba(232,93,4,0.07) 0%, transparent 70%)' }}/>
+            style={{ background: 'radial-gradient(ellipse 60% 100% at 80% 50%, rgba(var(--fire-rgb),0.07) 0%, transparent 70%)' }}/>
 
           {/* Fire side accent */}
           <div className="absolute left-0 top-0 bottom-0 w-[3px]"
@@ -727,7 +727,7 @@ export default function PastEventsPage() {
                 {loaded ? `${flyers.length} events in the archive` : 'Loading archive...'}
               </span>
             </div>
-            <span style={{ fontFamily: 'var(--f-mono)', fontSize: '0.58rem', letterSpacing: '0.18em', color: 'rgba(232,93,4,0.5)', textTransform: 'uppercase' }}>
+            <span style={{ fontFamily: 'var(--f-mono)', fontSize: '0.58rem', letterSpacing: '0.18em', color: 'rgba(var(--fire-rgb),0.5)', textTransform: 'uppercase' }}>
               Click to expand
             </span>
           </motion.div>
@@ -739,7 +739,7 @@ export default function PastEventsPage() {
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 1.1, ease: 'linear' }}
                 className="w-10 h-10 rounded-full"
-                style={{ border: '2px solid rgba(232,93,4,0.15)', borderTopColor: 'var(--fire)' }}
+                style={{ border: '2px solid rgba(var(--fire-rgb),0.15)', borderTopColor: 'var(--fire)' }}
               />
               <p style={{ fontFamily: 'var(--f-mono)', fontSize: '0.58rem', letterSpacing: '0.25em', color: 'var(--cream-40)' }}>
                 LOADING ARCHIVE...
