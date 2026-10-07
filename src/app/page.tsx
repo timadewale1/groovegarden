@@ -225,6 +225,19 @@ const EDITIONS: Edition[] = [
     lineUp: 'Avatar, Sammie Kiss, DJ Virtual',
     flyerKeyword: 'freedom',
   },
+  {
+    key: 'no-rules-monday',
+    title: 'No Rules',
+    subtitle: 'Monday',
+    dateKey: '2026-10-12',
+    dateLabel: 'Monday, October 12, 2026',
+    time: '9 PM till Sunrise',
+    venue: 'Champions Cottage, FUOYE Phase 1 Road, Oye-Ekiti',
+    ticket: 'Walk in Free',
+    cabana: 'Strictly by Reservation',
+    lineUp: 'Avatar, Sammie Kiss, DJ Virtual',
+    flyerKeyword: 'no rules monday',
+  },
 ]
 
 function getLagosDateKey() {
