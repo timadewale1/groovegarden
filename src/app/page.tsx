@@ -238,6 +238,19 @@ const EDITIONS: Edition[] = [
     lineUp: 'Avatar, Sammie Kiss, DJ Virtual',
     flyerKeyword: 'no rules monday',
   },
+  {
+    key: 'whistle-fiesta',
+    title: 'Whistle',
+    subtitle: 'Fiesta',
+    dateKey: '2026-10-19',
+    dateLabel: 'Monday, October 19, 2026',
+    time: '9 PM till Sunrise',
+    venue: 'Champions Cottage, FUOYE Phase 1 Road, Oye-Ekiti',
+    ticket: 'Walk in ₦1,000',
+    cabana: 'Strictly by Reservation',
+    lineUp: 'Avatar, Sammie Kiss, DJ Virtual, DJ Kaysmart',
+    flyerKeyword: 'whistle fiesta',
+  },
 ]
 
 function getLagosDateKey() {
@@ -254,6 +267,55 @@ function getLagosDateKey() {
 
 function findFlyerByKeyword(files: string[], keyword: string) {
   return files.find(file => file.toLowerCase().includes(keyword)) || ''
+}
+
+function isWhistleFiestaWindow(dateKey: string = getLagosDateKey()) {
+  return dateKey >= '2026-10-12' && dateKey <= '2026-10-19'
+}
+
+function playWhistleTone() {
+  if (typeof window === 'undefined') return
+
+  const AudioCtor = window.AudioContext || (window as typeof window & {
+    webkitAudioContext?: typeof AudioContext
+  }).webkitAudioContext
+
+  if (!AudioCtor) return
+
+  const ctx = new AudioCtor()
+  const now = ctx.currentTime
+  const master = ctx.createGain()
+
+  master.gain.setValueAtTime(0.0001, now)
+  master.gain.exponentialRampToValueAtTime(0.09, now + 0.02)
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.8)
+  master.connect(ctx.destination)
+
+  const mainOsc = ctx.createOscillator()
+  mainOsc.type = 'sine'
+  mainOsc.frequency.setValueAtTime(1700, now)
+  mainOsc.frequency.exponentialRampToValueAtTime(2400, now + 0.18)
+  mainOsc.connect(master)
+  mainOsc.start(now)
+  mainOsc.stop(now + 0.5)
+
+  const harmonics = ctx.createOscillator()
+  harmonics.type = 'triangle'
+  harmonics.frequency.setValueAtTime(2600, now)
+  harmonics.frequency.exponentialRampToValueAtTime(3600, now + 0.14)
+  harmonics.connect(master)
+  harmonics.start(now)
+  harmonics.stop(now + 0.42)
+
+  const tail = ctx.createOscillator()
+  tail.type = 'sine'
+  tail.frequency.setValueAtTime(1200, now + 0.12)
+  tail.frequency.exponentialRampToValueAtTime(800, now + 0.25)
+  tail.connect(master)
+  tail.start(now + 0.12)
+  tail.stop(now + 0.45)
+
+  setTimeout(() => ctx.close(), 900)
 }
 
 function getActiveEdition(files: string[]) {
@@ -1042,6 +1104,31 @@ function UpcomingEvent({
   edition: Edition
   isEasterSeason: boolean
 }) {
+  const isWhistleFiesta = edition.key === 'whistle-fiesta' && isWhistleFiestaWindow()
+
+  useEffect(() => {
+    if (!isWhistleFiesta) return
+
+    const playOnInteraction = () => {
+      playWhistleTone()
+      window.removeEventListener('pointerdown', playOnInteraction)
+      window.removeEventListener('keydown', playOnInteraction)
+    }
+
+    const timer = setTimeout(() => {
+      playWhistleTone()
+    }, 1800)
+
+    window.addEventListener('pointerdown', playOnInteraction, { once: true })
+    window.addEventListener('keydown', playOnInteraction, { once: true })
+
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('pointerdown', playOnInteraction)
+      window.removeEventListener('keydown', playOnInteraction)
+    }
+  }, [isWhistleFiesta])
+
   return (
     <section className="sec" style={{
       background:'linear-gradient(160deg, #130e08 0%, #0a0f0d 40%, #0d2b18 100%)',
@@ -1096,6 +1183,67 @@ function UpcomingEvent({
               textTransform: 'uppercase',
             }}>
             Easter Special
+          </div>
+        </>
+      )}
+
+      {isWhistleFiesta && (
+        <>
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {[0, 1, 2, 3].map((item) => (
+              <motion.div
+                key={item}
+                animate={{
+                  x: [0, item % 2 === 0 ? 22 : -22, 0],
+                  y: [0, -18, 0],
+                  rotate: [item % 2 === 0 ? -12 : 12, item % 2 === 0 ? 12 : -12, item % 2 === 0 ? -12 : 12],
+                  opacity: [0.28, 0.7, 0.28],
+                }}
+                transition={{
+                  duration: 3 + item * 0.5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: item * 0.5,
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `${10 + item * 20}%`,
+                  top: `${14 + (item % 3) * 18}%`,
+                  width: item % 2 === 0 ? '70px' : '54px',
+                  height: item % 2 === 0 ? '18px' : '12px',
+                  borderRadius: '999px',
+                  background: 'linear-gradient(90deg, rgba(255,255,255,0), rgba(147,197,253,0.8), rgba(255,255,255,0))',
+                  boxShadow: '0 0 18px rgba(125,211,252,0.3)',
+                }}
+              />
+            ))}
+            <motion.div
+              animate={{
+                scale: [1, 1.06, 1],
+                filter: ['blur(0px)', 'blur(2px)', 'blur(0px)'],
+              }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                position: 'absolute',
+                right: 'max(1rem, 5vw)',
+                top: '30%',
+                width: '120px',
+                height: '120px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(147,197,253,0.22) 0%, rgba(147,197,253,0.08) 28%, transparent 70%)',
+              }}
+            />
+          </div>
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none"
+            style={{
+              fontFamily: 'var(--f-mono)',
+              fontSize: '0.58rem',
+              letterSpacing: '0.28em',
+              color: 'rgba(191,219,254,0.9)',
+              textTransform: 'uppercase',
+              textShadow: '0 0 16px rgba(147,197,253,0.6)',
+            }}>
+            WHISTLE MODE
           </div>
         </>
       )}
