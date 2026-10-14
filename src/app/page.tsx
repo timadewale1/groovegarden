@@ -273,7 +273,7 @@ function isWhistleFiestaWindow(dateKey: string = getLagosDateKey()) {
   return dateKey >= '2026-10-12' && dateKey <= '2026-10-19'
 }
 
-function playWhistleLoop() {
+function playWhistleLoop(durationMs = 5000) {
   if (typeof window === 'undefined') return () => {}
 
   const AudioCtor = window.AudioContext || (window as typeof window & {
@@ -284,20 +284,23 @@ function playWhistleLoop() {
 
   const ctx = new AudioCtor()
   const master = ctx.createGain()
-  master.gain.value = 0.065
+  master.gain.value = 0.12
   master.connect(ctx.destination)
 
   const chirps = [
-    [0.0, 1700, 0.18],
-    [0.18, 1500, 0.16],
-    [0.42, 1900, 0.20],
-    [0.72, 1650, 0.18],
-    [1.05, 2000, 0.17],
-    [1.35, 1750, 0.19],
-    [1.72, 2100, 0.18],
-    [2.05, 1600, 0.15],
-    [2.37, 1850, 0.20],
-    [2.7, 1750, 0.22],
+    [0.05, 1750, 0.16],
+    [0.28, 1540, 0.14],
+    [0.52, 2050, 0.18],
+    [0.82, 1680, 0.16],
+    [1.08, 2240, 0.18],
+    [1.42, 1820, 0.2],
+    [1.82, 2400, 0.22],
+    [2.24, 1760, 0.18],
+    [2.62, 2100, 0.22],
+    [3.08, 1880, 0.18],
+    [3.55, 2280, 0.2],
+    [4.1, 1700, 0.18],
+    [4.5, 2000, 0.18],
   ] as const
 
   chirps.forEach(([start, pitch, dur]) => {
@@ -307,10 +310,10 @@ function playWhistleLoop() {
 
     osc.type = 'sine'
     osc.frequency.setValueAtTime(pitch, peak)
-    osc.frequency.exponentialRampToValueAtTime(pitch * 1.32, peak + dur)
+    osc.frequency.exponentialRampToValueAtTime(pitch * 1.4, peak + dur)
 
     gain.gain.setValueAtTime(0.0001, peak)
-    gain.gain.exponentialRampToValueAtTime(0.11, peak + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.18, peak + 0.02)
     gain.gain.exponentialRampToValueAtTime(0.0001, peak + dur)
 
     osc.connect(gain)
@@ -321,7 +324,7 @@ function playWhistleLoop() {
 
   const timeout = window.setTimeout(() => {
     void ctx.close()
-  }, 3200)
+  }, durationMs + 100)
 
   return () => {
     window.clearTimeout(timeout)
@@ -518,13 +521,43 @@ function Hero() {
       <div className="absolute inset-0 pointer-events-none bg-dots" style={{ opacity: 0.5 }} />
 
       <motion.div
-        className="absolute right-[clamp(1rem,4vw,5rem)] top-[clamp(4rem,8vw,8rem)] z-20 pointer-events-none"
-        initial={{ opacity: 0, x: 30, y: 20, rotate: -18, scale: 0.8 }}
-        animate={{ opacity: [0.4, 1, 0.7], x: [18, 0, 16], y: [10, -12, 6], rotate: [-18, 8, -12], scale: [0.94, 1.08, 0.96] }}
-        transition={{ duration: 3.2, ease: 'easeInOut', repeat: Infinity, delay: 0.2 }}
-        style={{ filter: 'drop-shadow(0 0 28px rgba(191,219,254,0.38))' }}
+        className="absolute top-[clamp(4rem,8vw,8rem)] z-20 pointer-events-none"
+        initial={{ x: '120vw', opacity: 0, rotate: -18, scale: 0.72 }}
+        animate={{
+          x: ['120vw', '58vw', '14vw', '-18vw', '-46vw'],
+          y: [0, -12, 18, -10, 10],
+          opacity: [0, 1, 1, 0.9, 0],
+          rotate: [-18, -12, 8, -8, -18],
+          scale: [0.72, 0.9, 1.17, 1.08, 0.85],
+        }}
+        transition={{ duration: 5, ease: 'easeInOut', repeat: 0 }}
+        style={{
+          filter: 'drop-shadow(0 0 28px rgba(191,219,254,0.38))',
+          willChange: 'transform, opacity',
+        }}
       >
-        <Image src="/whistle.png" alt="Whistle" width={180} height={180} className="object-contain" />
+        <div className="relative">
+          <motion.div
+            animate={{
+              rotate: [-6, 6, -6],
+              scale: [1, 1.08, 1],
+            }}
+            transition={{ duration: 0.9, ease: 'easeInOut', repeat: Infinity }}
+            className="relative"
+            style={{ transformOrigin: 'center' }}
+          >
+            <Image src="/whistle.png" alt="Whistle" width={180} height={180} className="object-contain" />
+          </motion.div>
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            animate={{ opacity: [0.2, 0.55, 0.2], scale: [0.8, 1.25, 0.8] }}
+            transition={{ duration: 1.4, ease: 'easeInOut', repeat: Infinity }}
+            style={{
+              background: 'radial-gradient(circle, rgba(191,219,254,0.34) 0%, rgba(191,219,254,0.1) 38%, transparent 72%)',
+              transform: 'translate(-12%, -8%)',
+            }}
+          />
+        </div>
       </motion.div>
 
       {/* Vertical fire line left */}
