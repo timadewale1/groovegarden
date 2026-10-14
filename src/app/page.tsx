@@ -524,23 +524,23 @@ function Hero() {
         className="absolute top-[clamp(4rem,8vw,8rem)] z-20 pointer-events-none"
         initial={{ x: '120vw', opacity: 0, rotate: -18, scale: 0.72 }}
         animate={{
-          x: ['120vw', '58vw', '14vw', '-18vw', '-46vw'],
-          y: [0, -12, 18, -10, 10],
+          x: ['120vw', '72vw', '26vw', '-14vw', '-54vw'],
+          y: [0, -18, 20, -14, 12],
           opacity: [0, 1, 1, 0.9, 0],
-          rotate: [-18, -12, 8, -8, -18],
-          scale: [0.72, 0.9, 1.17, 1.08, 0.85],
+          rotate: [-18, -10, 12, -10, -18],
+          scale: [0.72, 0.9, 1.22, 1.12, 0.8],
         }}
         transition={{ duration: 5, ease: 'easeInOut', repeat: 0 }}
         style={{
-          filter: 'drop-shadow(0 0 28px rgba(191,219,254,0.38))',
+          filter: 'drop-shadow(0 0 34px rgba(191,219,254,0.52))',
           willChange: 'transform, opacity',
         }}
       >
         <div className="relative">
           <motion.div
             animate={{
-              rotate: [-6, 6, -6],
-              scale: [1, 1.08, 1],
+              rotate: [-10, 8, -10, 10, -10],
+              scale: [1, 1.1, 1.06, 1.18, 1],
             }}
             transition={{ duration: 0.9, ease: 'easeInOut', repeat: Infinity }}
             className="relative"
@@ -548,13 +548,24 @@ function Hero() {
           >
             <Image src="/whistle.png" alt="Whistle" width={180} height={180} className="object-contain" />
           </motion.div>
+
           <motion.div
             className="absolute inset-0 rounded-full"
-            animate={{ opacity: [0.2, 0.55, 0.2], scale: [0.8, 1.25, 0.8] }}
-            transition={{ duration: 1.4, ease: 'easeInOut', repeat: Infinity }}
+            animate={{ opacity: [0.15, 0.7, 0.2, 0.55, 0.2], scale: [0.7, 1.3, 1.7, 1.05, 0.8] }}
+            transition={{ duration: 1.2, ease: 'easeInOut', repeat: Infinity }}
             style={{
-              background: 'radial-gradient(circle, rgba(191,219,254,0.34) 0%, rgba(191,219,254,0.1) 38%, transparent 72%)',
-              transform: 'translate(-12%, -8%)',
+              background: 'radial-gradient(circle, rgba(191,219,254,0.45) 0%, rgba(191,219,254,0.2) 26%, rgba(191,219,254,0.06) 52%, transparent 72%)',
+              transform: 'translate(-14%, -8%)',
+            }}
+          />
+
+          <motion.div
+            className="absolute -left-12 top-1/2 -translate-y-1/2 h-2 w-[120px] rounded-full"
+            animate={{ opacity: [0, 0.7, 0], scaleX: [0.2, 1, 0.4], x: [-12, 10, 30] }}
+            transition={{ duration: 1.1, ease: 'easeOut', repeat: Infinity }}
+            style={{
+              background: 'linear-gradient(90deg, rgba(191,219,254,0), rgba(191,219,254,0.7), rgba(191,219,254,0))',
+              filter: 'blur(6px)',
             }}
           />
         </div>
