@@ -273,49 +273,60 @@ function isWhistleFiestaWindow(dateKey: string = getLagosDateKey()) {
   return dateKey >= '2026-10-12' && dateKey <= '2026-10-19'
 }
 
-function playWhistleTone() {
-  if (typeof window === 'undefined') return
+function playWhistleLoop() {
+  if (typeof window === 'undefined') return () => {}
 
   const AudioCtor = window.AudioContext || (window as typeof window & {
     webkitAudioContext?: typeof AudioContext
   }).webkitAudioContext
 
-  if (!AudioCtor) return
+  if (!AudioCtor) return () => {}
 
   const ctx = new AudioCtor()
-  const now = ctx.currentTime
   const master = ctx.createGain()
-
-  master.gain.setValueAtTime(0.0001, now)
-  master.gain.exponentialRampToValueAtTime(0.09, now + 0.02)
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.8)
+  master.gain.value = 0.065
   master.connect(ctx.destination)
 
-  const mainOsc = ctx.createOscillator()
-  mainOsc.type = 'sine'
-  mainOsc.frequency.setValueAtTime(1700, now)
-  mainOsc.frequency.exponentialRampToValueAtTime(2400, now + 0.18)
-  mainOsc.connect(master)
-  mainOsc.start(now)
-  mainOsc.stop(now + 0.5)
+  const chirps = [
+    [0.0, 1700, 0.18],
+    [0.18, 1500, 0.16],
+    [0.42, 1900, 0.20],
+    [0.72, 1650, 0.18],
+    [1.05, 2000, 0.17],
+    [1.35, 1750, 0.19],
+    [1.72, 2100, 0.18],
+    [2.05, 1600, 0.15],
+    [2.37, 1850, 0.20],
+    [2.7, 1750, 0.22],
+  ] as const
 
-  const harmonics = ctx.createOscillator()
-  harmonics.type = 'triangle'
-  harmonics.frequency.setValueAtTime(2600, now)
-  harmonics.frequency.exponentialRampToValueAtTime(3600, now + 0.14)
-  harmonics.connect(master)
-  harmonics.start(now)
-  harmonics.stop(now + 0.42)
+  chirps.forEach(([start, pitch, dur]) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    const peak = ctx.currentTime + start
 
-  const tail = ctx.createOscillator()
-  tail.type = 'sine'
-  tail.frequency.setValueAtTime(1200, now + 0.12)
-  tail.frequency.exponentialRampToValueAtTime(800, now + 0.25)
-  tail.connect(master)
-  tail.start(now + 0.12)
-  tail.stop(now + 0.45)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(pitch, peak)
+    osc.frequency.exponentialRampToValueAtTime(pitch * 1.32, peak + dur)
 
-  setTimeout(() => ctx.close(), 900)
+    gain.gain.setValueAtTime(0.0001, peak)
+    gain.gain.exponentialRampToValueAtTime(0.11, peak + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, peak + dur)
+
+    osc.connect(gain)
+    gain.connect(master)
+    osc.start(peak)
+    osc.stop(peak + dur)
+  })
+
+  const timeout = window.setTimeout(() => {
+    void ctx.close()
+  }, 3200)
+
+  return () => {
+    window.clearTimeout(timeout)
+    void ctx.close()
+  }
 }
 
 function getActiveEdition(files: string[]) {
@@ -424,6 +435,11 @@ function Hero() {
   const fade = useTransform(scrollYProgress, [0, 0.8], [1, 0])
   const isEasterSeason = getLagosDateKey() <= '2026-04-13'
 
+  useEffect(() => {
+    const stop = playWhistleLoop()
+    return stop
+  }, [])
+
   return (
     <section ref={ref} className="relative min-h-[100svh] flex items-end overflow-hidden bg-lines"
       style={{
@@ -500,6 +516,16 @@ function Hero() {
 
       {/* Dot grid texture */}
       <div className="absolute inset-0 pointer-events-none bg-dots" style={{ opacity: 0.5 }} />
+
+      <motion.div
+        className="absolute right-[clamp(1rem,4vw,5rem)] top-[clamp(4rem,8vw,8rem)] z-20 pointer-events-none"
+        initial={{ opacity: 0, x: 30, y: 20, rotate: -18, scale: 0.8 }}
+        animate={{ opacity: [0.4, 1, 0.7], x: [18, 0, 16], y: [10, -12, 6], rotate: [-18, 8, -12], scale: [0.94, 1.08, 0.96] }}
+        transition={{ duration: 3.2, ease: 'easeInOut', repeat: Infinity, delay: 0.2 }}
+        style={{ filter: 'drop-shadow(0 0 28px rgba(191,219,254,0.38))' }}
+      >
+        <Image src="/whistle.png" alt="Whistle" width={180} height={180} className="object-contain" />
+      </motion.div>
 
       {/* Vertical fire line left */}
       <div className="absolute left-[clamp(1.5rem,6vw,7rem)] top-0 bottom-0 w-[1px] pointer-events-none"
@@ -1105,29 +1131,6 @@ function UpcomingEvent({
   isEasterSeason: boolean
 }) {
   const isWhistleFiesta = edition.key === 'whistle-fiesta' && isWhistleFiestaWindow()
-
-  useEffect(() => {
-    if (!isWhistleFiesta) return
-
-    const playOnInteraction = () => {
-      playWhistleTone()
-      window.removeEventListener('pointerdown', playOnInteraction)
-      window.removeEventListener('keydown', playOnInteraction)
-    }
-
-    const timer = setTimeout(() => {
-      playWhistleTone()
-    }, 1800)
-
-    window.addEventListener('pointerdown', playOnInteraction, { once: true })
-    window.addEventListener('keydown', playOnInteraction, { once: true })
-
-    return () => {
-      clearTimeout(timer)
-      window.removeEventListener('pointerdown', playOnInteraction)
-      window.removeEventListener('keydown', playOnInteraction)
-    }
-  }, [isWhistleFiesta])
 
   return (
     <section className="sec" style={{
