@@ -287,6 +287,10 @@ function playWhistleLoop(durationMs = 5000) {
   master.gain.value = 0.12
   master.connect(ctx.destination)
 
+  if (ctx.state === 'suspended') {
+    void ctx.resume().catch(() => undefined)
+  }
+
   const chirps = [
     [0.05, 1750, 0.16],
     [0.28, 1540, 0.14],
@@ -326,8 +330,19 @@ function playWhistleLoop(durationMs = 5000) {
     void ctx.close()
   }, durationMs + 100)
 
+  const resumeOnGesture = () => {
+    void ctx.resume().catch(() => undefined)
+  }
+
+  window.addEventListener('pointerdown', resumeOnGesture, { once: true })
+  window.addEventListener('touchstart', resumeOnGesture, { once: true })
+  window.addEventListener('keydown', resumeOnGesture, { once: true })
+
   return () => {
     window.clearTimeout(timeout)
+    window.removeEventListener('pointerdown', resumeOnGesture)
+    window.removeEventListener('touchstart', resumeOnGesture)
+    window.removeEventListener('keydown', resumeOnGesture)
     void ctx.close()
   }
 }
@@ -440,7 +455,29 @@ function Hero() {
 
   useEffect(() => {
     const stop = playWhistleLoop()
-    return stop
+
+    const resumeAudio = () => {
+      const AudioCtor = window.AudioContext || (window as typeof window & {
+        webkitAudioContext?: typeof AudioContext
+      }).webkitAudioContext
+
+      if (!AudioCtor) return
+
+      const ctx = new AudioCtor()
+      void ctx.resume().catch(() => undefined)
+      void ctx.close()
+    }
+
+    window.addEventListener('pointerdown', resumeAudio, { once: true })
+    window.addEventListener('touchstart', resumeAudio, { once: true })
+    window.addEventListener('keydown', resumeAudio, { once: true })
+
+    return () => {
+      stop()
+      window.removeEventListener('pointerdown', resumeAudio)
+      window.removeEventListener('touchstart', resumeAudio)
+      window.removeEventListener('keydown', resumeAudio)
+    }
   }, [])
 
   return (
