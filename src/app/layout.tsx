@@ -69,15 +69,22 @@ function IndependenceTheme() {
       const lookup = Object.fromEntries(parts.map(part => [part.type, part.value]))
       const dateKey = `${lookup.year}-${lookup.month}-${lookup.day}`
       const isIndependenceWeek = dateKey >= '2026-09-30' && dateKey <= '2026-10-05'
+      const isHalloweenSeason = dateKey >= '2026-10-31' && dateKey <= '2026-11-03'
       const wasGreetingDismissed = document.documentElement.dataset.independenceGreeting === 'dismissed'
 
       if (isIndependenceWeek) {
         document.documentElement.dataset.theme = 'independence'
+      } else if (isHalloweenSeason) {
+        document.documentElement.dataset.theme = 'halloween'
+      } else {
+        delete document.documentElement.dataset.theme
+      }
+
+      if (isIndependenceWeek) {
         if (!wasGreetingDismissed) {
           document.documentElement.dataset.independenceGreeting = 'show'
         }
       } else {
-        delete document.documentElement.dataset.theme
         delete document.documentElement.dataset.independenceGreeting
       }
     }
@@ -92,38 +99,45 @@ function IndependenceTheme() {
   }
 
   return (
-    <div className="independence-welcome" aria-live="polite" aria-atomic="true">
-      <div className="independence-confetti" aria-hidden="true">
-        {Array.from({ length: 36 }, (_, index) => (
-          <span
-            key={index}
-            className="independence-confetti-piece"
-            style={{
-              left: `${(index * 37) % 100}%`,
-              animationDelay: `${-((index * 13) % 8)}s`,
-              animationDuration: `${7 + (index % 6)}s`,
-              '--confetti-drift': `${(index % 2 ? 1 : -1) * (24 + (index % 8) * 8)}px`,
-              background: index % 3 === 1 ? '#ffffff' : '#008751',
-            } as React.CSSProperties}
-          />
-        ))}
+    <>
+      <div className="halloween-ghosts" aria-hidden="true">
+        <span className="halloween-ghost halloween-ghost-one">👻</span>
+        <span className="halloween-ghost halloween-ghost-two">👻</span>
+        <span className="halloween-ghost halloween-ghost-three">👻</span>
       </div>
-      <div className="independence-welcome-message">
-        <span className="independence-flag" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </span>
-        <div className="independence-welcome-copy">
-          <strong>Happy Independence Day, Nigeria!</strong>
-          <span>Celebrating 66 years of freedom, unity, and culture.</span>
+      <div className="independence-welcome" aria-live="polite" aria-atomic="true">
+        <div className="independence-confetti" aria-hidden="true">
+          {Array.from({ length: 36 }, (_, index) => (
+            <span
+              key={index}
+              className="independence-confetti-piece"
+              style={{
+                left: `${(index * 37) % 100}%`,
+                animationDelay: `${-((index * 13) % 8)}s`,
+                animationDuration: `${7 + (index % 6)}s`,
+                '--confetti-drift': `${(index % 2 ? 1 : -1) * (24 + (index % 8) * 8)}px`,
+                background: index % 3 === 1 ? '#ffffff' : '#008751',
+              } as React.CSSProperties}
+            />
+          ))}
         </div>
-        <button type="button" className="btn btn-fire independence-welcome-dismiss" onClick={dismissGreeting} title="Dismiss greeting">
-          <span>Let&apos;s groove</span>
-          <FiArrowRight size={13} />
-        </button>
+        <div className="independence-welcome-message">
+          <span className="independence-flag" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <div className="independence-welcome-copy">
+            <strong>Happy Independence Day, Nigeria!</strong>
+            <span>Celebrating 66 years of freedom, unity, and culture.</span>
+          </div>
+          <button type="button" className="btn btn-fire independence-welcome-dismiss" onClick={dismissGreeting} title="Dismiss greeting">
+            <span>Let&apos;s groove</span>
+            <FiArrowRight size={13} />
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -146,7 +160,7 @@ function Navbar() {
     <motion.nav
       className="fixed top-0 left-0 right-0 z-[900]"
       animate={{
-        background:     filled ? 'rgba(10,15,13,0.92)' : 'transparent',
+        background:     filled ? 'color-mix(in srgb, var(--bg-base) 92%, transparent)' : 'transparent',
         backdropFilter: filled ? 'blur(24px) saturate(160%)' : 'none',
         paddingTop:     filled ? '0.75rem' : '1.5rem',
         paddingBottom:  filled ? '0.75rem' : '1.5rem',

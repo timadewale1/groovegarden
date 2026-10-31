@@ -251,6 +251,19 @@ const EDITIONS: Edition[] = [
     lineUp: 'Avatar, Sammie Kiss, DJ Virtual, DJ Kaysmart',
     flyerKeyword: 'whistle fiesta',
   },
+  {
+    key: 'halloween-monday',
+    title: 'Halloween',
+    subtitle: 'Monday',
+    dateKey: '2026-11-02',
+    dateLabel: 'Monday, November 2, 2026',
+    time: '9 PM till Sunrise',
+    venue: 'Champions Cottage, FUOYE Phase 1 Road, Oye-Ekiti',
+    ticket: 'Walk in ₦1,000',
+    cabana: 'Strictly by Reservation',
+    lineUp: 'Avatar, Sammie Kiss, DJ Virtual, DJ Kaysmart',
+    flyerKeyword: 'halloween monday',
+  },
 ]
 
 function getLagosDateKey() {
