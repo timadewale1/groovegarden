@@ -493,6 +493,33 @@ function Hero() {
     }
   }, [])
 
+  useEffect(() => {
+    const stop = playWhistleLoop()
+
+    const resumeAudio = () => {
+      const AudioCtor = window.AudioContext || (window as typeof window & {
+        webkitAudioContext?: typeof AudioContext
+      }).webkitAudioContext
+
+      if (!AudioCtor) return
+
+      const ctx = new AudioCtor()
+      void ctx.resume().catch(() => undefined)
+      void ctx.close()
+    }
+
+    window.addEventListener('pointerdown', resumeAudio, { once: true })
+    window.addEventListener('touchstart', resumeAudio, { once: true })
+    window.addEventListener('keydown', resumeAudio, { once: true })
+
+    return () => {
+      stop()
+      window.removeEventListener('pointerdown', resumeAudio)
+      window.removeEventListener('touchstart', resumeAudio)
+      window.removeEventListener('keydown', resumeAudio)
+    }
+  }, [])
+
   return (
     <section ref={ref} className="relative min-h-[100svh] flex items-end overflow-hidden bg-lines"
       style={{
@@ -569,57 +596,6 @@ function Hero() {
 
       {/* Dot grid texture */}
       <div className="absolute inset-0 pointer-events-none bg-dots" style={{ opacity: 0.5 }} />
-
-      <motion.div
-        className="absolute top-[clamp(4rem,8vw,8rem)] z-20 pointer-events-none"
-        initial={{ x: '120vw', opacity: 0, rotate: -18, scale: 0.72 }}
-        animate={{
-          x: ['120vw', '72vw', '26vw', '-14vw', '-54vw'],
-          y: [0, -18, 20, -14, 12],
-          opacity: [0, 1, 1, 0.9, 0],
-          rotate: [-18, -10, 12, -10, -18],
-          scale: [0.72, 0.9, 1.22, 1.12, 0.8],
-        }}
-        transition={{ duration: 5, ease: 'easeInOut', repeat: 0 }}
-        style={{
-          filter: 'drop-shadow(0 0 34px rgba(191,219,254,0.52))',
-          willChange: 'transform, opacity',
-        }}
-      >
-        <div className="relative">
-          <motion.div
-            animate={{
-              rotate: [-10, 8, -10, 10, -10],
-              scale: [1, 1.1, 1.06, 1.18, 1],
-            }}
-            transition={{ duration: 0.9, ease: 'easeInOut', repeat: Infinity }}
-            className="relative"
-            style={{ transformOrigin: 'center' }}
-          >
-            <Image src="/whistle.png" alt="Whistle" width={180} height={180} className="object-contain" />
-          </motion.div>
-
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            animate={{ opacity: [0.15, 0.7, 0.2, 0.55, 0.2], scale: [0.7, 1.3, 1.7, 1.05, 0.8] }}
-            transition={{ duration: 1.2, ease: 'easeInOut', repeat: Infinity }}
-            style={{
-              background: 'radial-gradient(circle, rgba(191,219,254,0.45) 0%, rgba(191,219,254,0.2) 26%, rgba(191,219,254,0.06) 52%, transparent 72%)',
-              transform: 'translate(-14%, -8%)',
-            }}
-          />
-
-          <motion.div
-            className="absolute -left-12 top-1/2 -translate-y-1/2 h-2 w-[120px] rounded-full"
-            animate={{ opacity: [0, 0.7, 0], scaleX: [0.2, 1, 0.4], x: [-12, 10, 30] }}
-            transition={{ duration: 1.1, ease: 'easeOut', repeat: Infinity }}
-            style={{
-              background: 'linear-gradient(90deg, rgba(191,219,254,0), rgba(191,219,254,0.7), rgba(191,219,254,0))',
-              filter: 'blur(6px)',
-            }}
-          />
-        </div>
-      </motion.div>
 
       {/* Vertical fire line left */}
       <div className="absolute left-[clamp(1.5rem,6vw,7rem)] top-0 bottom-0 w-[1px] pointer-events-none"

@@ -157,29 +157,61 @@
 :root[data-theme='halloween'] .halloween-ghost {
   display: block;
   position: absolute;
-  left: -4rem;
-  font-size: clamp(1.8rem, 3.2vw, 2.8rem);
-  opacity: 0.48;
+  left: -5rem;
+  font-size: clamp(2.4rem, 4vw, 3.5rem);
+  opacity: 0.64;
   filter: drop-shadow(0 0 12px rgba(255, 139, 56, 0.42));
   animation: halloween-ghost-flight 22s linear infinite;
 }
-:root[data-theme='halloween'] .halloween-ghost-one {
-  top: 18%;
+:root[data-theme='halloween'] .halloween-ghost-1 {
+  top: 12%;
+  animation-duration: 22s;
   animation-delay: -5s;
 }
-:root[data-theme='halloween'] .halloween-ghost-two {
-  top: 52%;
-  font-size: clamp(1.4rem, 2.4vw, 2rem);
-  opacity: 0.36;
+.halloween-ghost-2 {
+  top: 30%;
   animation-duration: 28s;
   animation-delay: -17s;
 }
-:root[data-theme='halloween'] .halloween-ghost-three {
-  top: 78%;
-  font-size: clamp(1.6rem, 2.8vw, 2.4rem);
-  opacity: 0.42;
+.halloween-ghost-3 {
+  top: 48%;
   animation-duration: 25s;
   animation-delay: -11s;
+}
+.halloween-ghost-4 {
+  top: 66%;
+  font-size: clamp(2rem, 3.2vw, 2.8rem);
+  opacity: 0.52;
+  animation-duration: 30s;
+  animation-delay: -22s;
+}
+.halloween-ghost-5 {
+  top: 82%;
+  animation-duration: 24s;
+  animation-delay: -8s;
+}
+.halloween-ghost-6 {
+  top: 38%;
+  font-size: clamp(1.8rem, 2.8vw, 2.5rem);
+  opacity: 0.46;
+  animation-duration: 32s;
+  animation-delay: -26s;
+}
+
+:root[data-theme='halloween'] .halloween-pumpkin {
+  position: fixed;
+  right: clamp(1rem, 3vw, 2.5rem);
+  bottom: clamp(1rem, 3vh, 2rem);
+  z-index: 850;
+  pointer-events: none;
+  font-size: clamp(2.8rem, 5vw, 4.2rem);
+  line-height: 1;
+  filter: drop-shadow(0 0 18px rgba(255, 139, 56, 0.5));
+  animation: halloween-pumpkin-bob 3.2s ease-in-out infinite;
+}
+@keyframes halloween-pumpkin-bob {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-10px) rotate(5deg); }
 }
 @keyframes halloween-ghost-flight {
   0% { transform: translate3d(-5vw, 0, 0) rotate(-8deg); }
@@ -190,9 +222,13 @@
 }
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme='halloween'] .halloween-ghost { animation: none; }
-  :root[data-theme='halloween'] .halloween-ghost-one { left: 14%; }
-  :root[data-theme='halloween'] .halloween-ghost-two { left: 48%; }
-  :root[data-theme='halloween'] .halloween-ghost-three { left: 80%; }
+  :root[data-theme='halloween'] .halloween-ghost-1 { left: 14%; }
+  :root[data-theme='halloween'] .halloween-ghost-2 { left: 30%; }
+  :root[data-theme='halloween'] .halloween-ghost-3 { left: 48%; }
+  :root[data-theme='halloween'] .halloween-ghost-4 { left: 66%; }
+  :root[data-theme='halloween'] .halloween-ghost-5 { left: 82%; }
+  :root[data-theme='halloween'] .halloween-ghost-6 { left: 38%; }
+  :root[data-theme='halloween'] .halloween-pumpkin { animation: none; }
 }
 
 .independence-welcome { display: none; position: fixed; inset: 0; z-index: 1100; pointer-events: none; overflow: hidden; }

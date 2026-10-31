@@ -101,10 +101,11 @@ function IndependenceTheme() {
   return (
     <>
       <div className="halloween-ghosts" aria-hidden="true">
-        <span className="halloween-ghost halloween-ghost-one">👻</span>
-        <span className="halloween-ghost halloween-ghost-two">👻</span>
-        <span className="halloween-ghost halloween-ghost-three">👻</span>
+        {Array.from({ length: 6 }, (_, index) => (
+          <span key={index} className={`halloween-ghost halloween-ghost-${index + 1}`}>👻</span>
+        ))}
       </div>
+      <div className="halloween-pumpkin" aria-hidden="true">🎃</div>
       <div className="independence-welcome" aria-live="polite" aria-atomic="true">
         <div className="independence-confetti" aria-hidden="true">
           {Array.from({ length: 36 }, (_, index) => (
