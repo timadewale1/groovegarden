@@ -264,7 +264,32 @@ const EDITIONS: Edition[] = [
     lineUp: 'Avatar, Sammie Kiss, DJ Virtual, DJ Kaysmart',
     flyerKeyword: 'halloween monday',
   },
+  {
+    key: 'groove-garden-carnival-2026',
+    title: 'Groove Garden Carnival 2026',
+    dateKey: '2026-11-30',
+    dateLabel: 'Monday, November 30, 2026',
+    time: '9 PM till Sunrise',
+    venue: 'Champions Cottage, FUOYE Phase 1 Road, Oye-Ekiti',
+    ticket: '₦3,000 online · ₦5,000 at the gate',
+    cabana: 'Strictly by Reservation',
+    lineUp: 'God Over (GOE) & Azzi on the Beat',
+    flyerKeyword: 'groove garden carnival 2026',
+  },
 ]
+
+const NEXT_EVENT_PLACEHOLDER: Edition = {
+  key: 'next-event-placeholder',
+  title: 'Next Event',
+  dateKey: '9999-12-31',
+  dateLabel: 'To be announced',
+  time: 'To be announced',
+  venue: 'Champions Cottage, FUOYE Phase 1 Road, Oye-Ekiti',
+  ticket: 'To be announced',
+  cabana: 'Strictly by Reservation',
+  lineUp: 'To be announced',
+  flyerKeyword: '',
+}
 
 function getLagosDateKey() {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -279,6 +304,7 @@ function getLagosDateKey() {
 }
 
 function findFlyerByKeyword(files: string[], keyword: string) {
+  if (!keyword) return ''
   return files.find(file => file.toLowerCase().includes(keyword)) || ''
 }
 
@@ -362,9 +388,7 @@ function playWhistleLoop(durationMs = 5000) {
 
 function getActiveEdition(files: string[]) {
   const todayKey = getLagosDateKey()
-  const activeEdition =
-    EDITIONS.find(edition => edition.dateKey >= todayKey) ||
-    EDITIONS[EDITIONS.length - 1]
+  const activeEdition = EDITIONS.find(edition => edition.dateKey >= todayKey) || NEXT_EVENT_PLACEHOLDER
 
   return {
     edition: activeEdition,
@@ -1191,6 +1215,414 @@ function VideoSection() {
 /* ════════════════════════════════════════════════════════════
    MAIN PAGE
 ════════════════════════════════════════════════════════════ */
+type TicketCheckoutSettings = {
+  enabled: boolean
+  eventName: string
+  eventDate: string
+  eventTime: string
+  ticketPriceNaira: number | null
+  maxSlots: number
+}
+
+function formatTicketEventDate(date: string) {
+  const parsed = new Date(`${date}T00:00:00Z`)
+  return Number.isNaN(parsed.getTime())
+    ? date
+    : parsed.toLocaleDateString('en-NG', {
+      timeZone: 'UTC',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+}
+
+function TicketPurchase() {
+  const [settings, setSettings] = useState<TicketCheckoutSettings | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const [isBusy, setIsBusy] = useState(false)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [pendingReference, setPendingReference] = useState('')
+  const paymentCheckRef = useRef<string | null>(null)
+  const [tickets, setTickets] = useState<string[]>([])
+  const [emailSent, setEmailSent] = useState(false)
+  const [emailBusy, setEmailBusy] = useState(false)
+  const [emailToast, setEmailToast] = useState<{ message: string; tone: 'success' | 'warning' } | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/tickets/config', { cache: 'no-store' })
+      .then(async response => {
+        if (!response.ok) throw new Error('Ticket sales status could not be loaded.')
+        const result: unknown = await response.json()
+        if (
+          !result ||
+          typeof result !== 'object' ||
+          typeof (result as TicketCheckoutSettings).enabled !== 'boolean' ||
+          typeof (result as TicketCheckoutSettings).eventName !== 'string' ||
+          typeof (result as TicketCheckoutSettings).eventDate !== 'string' ||
+          typeof (result as TicketCheckoutSettings).eventTime !== 'string' ||
+          !(
+            (result as TicketCheckoutSettings).ticketPriceNaira === null ||
+            typeof (result as TicketCheckoutSettings).ticketPriceNaira === 'number'
+          ) ||
+          typeof (result as TicketCheckoutSettings).maxSlots !== 'number'
+        ) {
+          throw new Error('Ticket sales status response was invalid.')
+        }
+        setSettings(result as TicketCheckoutSettings)
+      })
+      .catch(() => setError('Ticket sales status could not be loaded. Please try again later.'))
+  }, [])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isBusy) setIsOpen(false)
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [isOpen, isBusy])
+
+  useEffect(() => {
+    if (!emailToast) return
+    const timeout = window.setTimeout(() => setEmailToast(null), 8000)
+    return () => window.clearTimeout(timeout)
+  }, [emailToast])
+
+  const total = settings?.ticketPriceNaira ?? 0
+
+  const deliverTicketEmail = async (reference: string) => {
+    setEmailBusy(true)
+    try {
+      const response = await fetch('/api/tickets/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference }),
+        signal: AbortSignal.timeout(45_000),
+      })
+      const result = await response.json() as { ok?: unknown; emailSent?: unknown; error?: unknown }
+      if (!response.ok || result.ok !== true) {
+        throw new Error(typeof result.error === 'string' ? result.error : 'Ticket email delivery is pending.')
+      }
+
+      const wasEmailSent = result.emailSent === true
+      setEmailSent(wasEmailSent)
+      setEmailToast({
+        tone: wasEmailSent ? 'success' : 'warning',
+        message: wasEmailSent
+          ? `Payment confirmed. Your ticket was sent to ${email}. Check your inbox and spam folder.`
+          : 'Payment confirmed. Ticket delivery is being completed; check your inbox and spam folder, then retry email delivery if it has not arrived.',
+      })
+    } catch {
+      setEmailSent(false)
+      setEmailToast({
+        tone: 'warning',
+        message: 'Payment is confirmed, but ticket email delivery is still pending. Check your inbox and spam folder, then retry email delivery below.',
+      })
+    } finally {
+      setEmailBusy(false)
+    }
+  }
+
+  const confirmPayment = async (reference: string) => {
+    if (paymentCheckRef.current === reference) return
+    paymentCheckRef.current = reference
+    setPendingReference(reference)
+    setIsBusy(true)
+    setError('')
+    try {
+      const maxAttempts = 7
+      let transientFailures = 0
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        let response: Response
+        let result: {
+          ok?: unknown
+          status?: unknown
+          error?: unknown
+          tickets?: unknown
+        }
+        try {
+          response = await fetch('/api/tickets/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference }),
+            signal: AbortSignal.timeout(30_000),
+          })
+          result = await response.json() as typeof result
+        } catch (requestError) {
+          transientFailures += 1
+          if (transientFailures >= 2 || attempt === maxAttempts - 1) throw requestError
+          await new Promise(resolve => window.setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)))
+          continue
+        }
+
+        if (result.status === 'failed') {
+          setPendingReference('')
+          setError('Paystack confirmed that this payment did not complete. No ticket was issued. You can try checkout again.')
+          return
+        }
+        if (result.status === 'pending' && response.status === 202) {
+          if (attempt < maxAttempts - 1) {
+            await new Promise(resolve => window.setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)))
+            continue
+          }
+          setError('Paystack is still confirming this payment. No ticket has been issued yet. Do not pay again; use “Check payment again” shortly.')
+          return
+        }
+        if (!response.ok || result.ok !== true || result.status !== 'paid') {
+          if (response.status >= 500 && attempt < maxAttempts - 1 && transientFailures < 1) {
+            transientFailures += 1
+            await new Promise(resolve => window.setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)))
+            continue
+          }
+          throw new Error(typeof result.error === 'string' ? result.error : 'Payment verification failed. You can safely check again; tickets are issued only after Paystack confirms payment.')
+        }
+        if (
+          !Array.isArray(result.tickets) ||
+          !result.tickets.every(ticket =>
+            ticket && typeof ticket === 'object' && typeof (ticket as { ticketCode?: unknown }).ticketCode === 'string'
+          )
+        ) {
+          throw new Error('Payment was confirmed, but ticket details could not be loaded. Please check payment again.')
+        }
+        setTickets(result.tickets.map(ticket => (ticket as { ticketCode: string }).ticketCode))
+        setEmailSent(false)
+        setEmailToast({
+          tone: 'success',
+          message: `Payment confirmed. Your ticket is being emailed to ${email}; check your inbox and spam folder.`,
+        })
+        void deliverTicketEmail(reference)
+        return
+      }
+    } catch (verificationError) {
+      const message = verificationError instanceof Error ? verificationError.message : ''
+      setError(
+        /timeout|timed out|network|fetch|abort/i.test(message)
+          ? 'We could not reach Paystack to confirm the final status. No ticket is issued until payment is confirmed. Use “Check payment again” before starting another checkout.'
+          : message || 'Payment verification is taking longer than expected. Check payment again before starting another checkout.',
+      )
+    } finally {
+      paymentCheckRef.current = null
+      setIsBusy(false)
+    }
+  }
+
+  const startCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!settings?.enabled) return
+
+    setIsBusy(true)
+    setError('')
+    try {
+      const response = await fetch('/api/tickets/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName: name, email, phone, quantity: 1 }),
+      })
+      const order = await response.json() as {
+        reference?: unknown
+        publicKey?: unknown
+        amountKobo?: unknown
+        error?: unknown
+      }
+      if (!response.ok) {
+        throw new Error(typeof order.error === 'string' ? order.error : 'Could not start checkout.')
+      }
+      if (
+        typeof order.reference !== 'string' ||
+        typeof order.publicKey !== 'string' ||
+        typeof order.amountKobo !== 'number'
+      ) {
+        throw new Error('Checkout could not be initialized. Please try again.')
+      }
+
+      const paymentReference = order.reference
+      setPendingReference(paymentReference)
+      const { default: PaystackPop } = await import('@paystack/inline-js')
+      const paystack = new PaystackPop()
+      paystack.newTransaction({
+        key: order.publicKey,
+        email,
+        phone,
+        amount: order.amountKobo,
+        currency: 'NGN',
+        reference: paymentReference,
+        firstName: name.trim().split(/\s+/)[0],
+        lastName: name.trim().split(/\s+/).slice(1).join(' '),
+        onSuccess: () => { void confirmPayment(paymentReference) },
+        onCancel: () => {
+          setError('Checking Paystack for the final payment status…')
+          void confirmPayment(paymentReference)
+        },
+        onError: paymentError => {
+          setError(paymentError.message || 'Checking Paystack for the final payment status…')
+          void confirmPayment(paymentReference)
+        },
+      })
+    } catch (checkoutError) {
+      setIsBusy(false)
+      setError(checkoutError instanceof Error ? checkoutError.message : 'Could not start checkout.')
+    }
+  }
+
+  return (
+    <>
+      <AnimatePresence>
+        {emailToast && (
+          <motion.div
+            className={`ticket-toast ticket-toast-${emailToast.tone}`}
+            role={emailToast.tone === 'success' ? 'status' : 'alert'}
+            aria-live={emailToast.tone === 'success' ? 'polite' : 'assertive'}
+            initial={{ opacity: 0, y: -18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+          >
+            <span className="ticket-toast-mark">{emailToast.tone === 'success' ? '✓' : '!'}</span>
+            <span>{emailToast.message}</span>
+            <button type="button" onClick={() => setEmailToast(null)} aria-label="Dismiss notification">×</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <button type="button" className="btn btn-fire" onClick={() => {
+        if (tickets.length) {
+          setTickets([])
+          setEmailSent(false)
+          setPendingReference('')
+        }
+        setError('')
+        setIsOpen(true)
+      }}>
+        <span>Get Tickets</span><FiArrowRight size={13}/>
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(10px)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={event => {
+              if (event.target === event.currentTarget && !isBusy) setIsOpen(false)
+            }}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ticket-dialog-title"
+              className="ticket-dialog-panel w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              initial={{ y: 24, scale: 0.97 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 12, scale: 0.98 }}
+            >
+              <div className="ticket-dialog-heading">
+                <div className="ticket-dialog-brand">
+                  <span className="ticket-dialog-brand-mark"><PiStarFill size={13}/></span>
+                  <span>GROOVE GARDEN <i/> SECURE CHECKOUT</span>
+                </div>
+                <button type="button" className="ticket-dialog-close" onClick={() => setIsOpen(false)} disabled={isBusy} aria-label="Close ticket dialog">
+                  ×
+                </button>
+                <h2 id="ticket-dialog-title" className="ticket-dialog-title">
+                  {tickets.length ? <>You’re on the <em>list.</em></> : <>Your next night <em>out.</em></>}
+                </h2>
+                <p className="ticket-dialog-subtitle">
+                  {tickets.length ? 'Your payment has been verified.' : 'Reserve your place at the next Groove Garden.'}
+                </p>
+              </div>
+
+              {tickets.length > 0 ? (
+                <div className="ticket-confirmation">
+                  <div className="ticket-confirmation-event">
+                    <span>CONFIRMED EVENT</span>
+                    <strong>{settings?.eventName}</strong>
+                    <small>{settings?.eventDate ? formatTicketEventDate(settings.eventDate) : ''} · {settings?.eventTime}</small>
+                  </div>
+                  <p className="ticket-confirmation-label">YOUR TICKET CODE</p>
+                  <div className="ticket-confirmation-codes">
+                    {tickets.map(ticket => (
+                      <div key={ticket} className="ticket-confirmation-code">
+                        {ticket}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="ticket-confirmation-message">
+                    {emailSent
+                      ? `Your ticket has been sent to ${email}. Present the code or QR at the entrance.`
+                      : `Payment is confirmed, but email delivery is pending. Keep this code and retry to resend the ticket.`}
+                  </p>
+                  {!emailSent && pendingReference && (
+                    <button type="button" className="ticket-dialog-secondary-button" disabled={emailBusy || isBusy} onClick={() => { void deliverTicketEmail(pendingReference) }}>
+                      {emailBusy ? 'Sending ticket email…' : 'Retry email delivery'}
+                    </button>
+                  )}
+                  <button type="button" className="ticket-dialog-primary-button ticket-dialog-done" onClick={() => setIsOpen(false)}>Done</button>
+                </div>
+              ) : settings?.enabled ? (
+                <>
+                  <div className="ticket-event-summary">
+                    <div className="ticket-event-summary-copy">
+                      <span>UP NEXT AT GROOVE GARDEN</span>
+                      <strong>{settings.eventName}</strong>
+                      <small>{formatTicketEventDate(settings.eventDate)} <i/> {settings.eventTime}</small>
+                    </div>
+                    <div className="ticket-event-price">
+                      <span>ADMIT ONE</span>
+                      <strong>₦{settings.ticketPriceNaira?.toLocaleString('en-NG')}</strong>
+                    </div>
+                  </div>
+                  <form onSubmit={startCheckout} className="ticket-checkout-form">
+                    <div className="ticket-checkout-form-heading">
+                      <strong>Your details</strong>
+                      <span>One person per ticket</span>
+                    </div>
+                    <label className="ticket-form-label" htmlFor="ticket-name">Full name
+                      <input id="ticket-name" className="field ticket-form-input" autoComplete="name" placeholder="Name on the ticket" required maxLength={100} value={name} onChange={event => setName(event.target.value)} />
+                    </label>
+                    <label className="ticket-form-label" htmlFor="ticket-email">Email address
+                      <input id="ticket-email" className="field ticket-form-input" type="email" autoComplete="email" placeholder="Where we’ll send your ticket" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} />
+                    </label>
+                    <label className="ticket-form-label" htmlFor="ticket-phone">Phone number
+                      <input id="ticket-phone" className="field ticket-form-input" type="tel" autoComplete="tel" placeholder="Your contact number" required value={phone} onChange={event => setPhone(event.target.value)} />
+                    </label>
+                    <div className="ticket-total-row">
+                      <span>Total · 1 ticket</span>
+                      <strong>₦{total.toLocaleString('en-NG')}</strong>
+                    </div>
+                    {error && <p role="alert" className="ticket-dialog-error">{error}</p>}
+                    {pendingReference && error && (
+                      <button type="button" className="ticket-dialog-secondary-button" disabled={isBusy} onClick={() => { void confirmPayment(pendingReference) }}>
+                        {isBusy ? 'Checking payment…' : 'Check payment again'}
+                      </button>
+                    )}
+                    <button type="submit" className="ticket-dialog-primary-button" disabled={isBusy}>
+                      {isBusy ? 'Opening secure payment…' : <>Continue to secure payment <FiArrowRight size={15}/></>}
+                    </button>
+                    <p className="ticket-payment-note"><span aria-hidden="true">●</span> Secure payment powered by Paystack. Your unique ticket and QR code are emailed after payment is verified.</p>
+                  </form>
+                </>
+              ) : (
+                <div className="ticket-sales-unavailable">
+                  <span className="ticket-sales-unavailable-icon">✦</span>
+                  <strong>{settings?.eventName ?? 'Next Groove Garden event'}</strong>
+                  <p>{settings?.eventDate ? formatTicketEventDate(settings.eventDate) : 'To be announced'}{settings?.eventTime ? ` · ${settings.eventTime}` : ''}</p>
+                  <p>Ticket sales will open as soon as event details are confirmed.</p>
+                  {error && <p role="alert" className="ticket-dialog-error">{error}</p>}
+                </div>
+              )}
+              {error && tickets.length > 0 && <p role="alert" className="ticket-dialog-error ticket-dialog-bottom-error">{error}</p>}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
 function UpcomingEvent({
   flyer,
   edition,
@@ -1203,7 +1635,7 @@ function UpcomingEvent({
   const isWhistleFiesta = edition.key === 'whistle-fiesta' && isWhistleFiestaWindow()
 
   return (
-    <section className="sec" style={{
+    <section id="upcoming-event" className="sec" style={{
       background:'linear-gradient(160deg, #130e08 0%, #0a0f0d 40%, #0d2b18 100%)',
       borderTop:'1px solid rgba(240,235,224,0.05)',
       borderBottom:'1px solid rgba(240,235,224,0.05)',
@@ -1407,7 +1839,14 @@ function UpcomingEvent({
               ))}
             </div>
 
+            <p className="event-support-note">
+              For more enquiries or payment issues, contact{' '}
+              <a href="mailto:groovegardenhq@gmail.com">groovegardenhq@gmail.com</a>
+              {' '}and our team will be happy to assist you.
+            </p>
+
             <div className="flex flex-col sm:flex-row gap-4">
+              <TicketPurchase/>
               <Link href="/contact" className="btn btn-fire">
                 <span>Reserve a Cabana</span><FiArrowRight size={13}/>
               </Link>

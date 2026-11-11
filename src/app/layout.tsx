@@ -397,14 +397,22 @@ function Footer() {
 
 /* ── ROOT ────────────────────────────────────────────────── */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const isTicketVerification = usePathname() === '/ticket-verification'
+
   return (
     <html lang="en">
-      <body className="has-noise">
-        <IndependenceTheme />
-        <Cursor />
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
+      <body className={isTicketVerification ? 'verifier-standalone' : 'has-noise'}>
+        {isTicketVerification ? (
+          children
+        ) : (
+          <>
+            <IndependenceTheme />
+            <Cursor />
+            <Navbar />
+            <main>{children}</main>
+            <Footer />
+          </>
+        )}
         <Analytics />
       </body>
     </html>
