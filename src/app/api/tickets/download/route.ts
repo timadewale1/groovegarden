@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { NextResponse } from 'next/server'
 import QRCode from 'qrcode'
-import { createTicketSvg, isValidTicketDownloadToken } from '@/lib/ticket-download'
+import { createTicketPng, isValidTicketDownloadToken } from '@/lib/ticket-download'
 import { getPaidTicketForDownload } from '@/lib/tickets'
 
 export const runtime = 'nodejs'
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
           year: 'numeric',
         })
       : eventDateRaw
-    const svg = createTicketSvg({
+    const png = await createTicketPng({
       ticketCode: ticketCodeForSvg,
       fullName: ticket?.full_name || 'Preview Guest',
       email: ticket?.email || 'Preview only - not for entry',
@@ -53,11 +53,12 @@ export async function GET(request: Request) {
       qrDataUri: `data:image/png;base64,${qr.toString('base64')}`,
     })
 
-    return new NextResponse(svg, {
+    return new NextResponse(new Uint8Array(png), {
       headers: {
         'Cache-Control': 'private, no-store',
-        'Content-Disposition': `attachment; filename="groove-garden-ticket-${ticketCodeForSvg.toLowerCase()}.svg"`,
-        'Content-Type': 'image/svg+xml; charset=utf-8',
+        'Content-Disposition': `attachment; filename="groove-garden-ticket-${ticketCodeForSvg.toLowerCase()}.png"`,
+        'Content-Length': String(png.length),
+        'Content-Type': 'image/png',
         'X-Content-Type-Options': 'nosniff',
       },
     })

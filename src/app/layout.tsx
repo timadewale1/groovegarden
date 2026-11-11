@@ -105,7 +105,6 @@ function IndependenceTheme() {
           <span key={index} className={`halloween-ghost halloween-ghost-${index + 1}`}>👻</span>
         ))}
       </div>
-      <div className="halloween-pumpkin" aria-hidden="true">🎃</div>
       <div className="independence-welcome" aria-live="polite" aria-atomic="true">
         <div className="independence-confetti" aria-hidden="true">
           {Array.from({ length: 36 }, (_, index) => (

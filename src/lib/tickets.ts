@@ -3,7 +3,11 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import nodemailer from 'nodemailer'
 import QRCode from 'qrcode'
-import { createTicketDownloadUrl, createTicketEventDetailsUrl } from '@/lib/ticket-download'
+import {
+  createTicketDownloadUrl,
+  createTicketEventDetailsUrl,
+  createTicketPng,
+} from '@/lib/ticket-download'
 
 export const MAX_TICKET_SLOTS = 1
 
@@ -181,8 +185,34 @@ async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise
   })
 
   if (!response.ok) {
-    console.error(`Ticket database request failed with status ${response.status}.`)
-    throw new Error('Ticket service is temporarily unavailable.')
+    const responseBody = await response.text()
+    let databaseError: { code?: unknown; message?: unknown; hint?: unknown } = {}
+    try {
+      databaseError = JSON.parse(responseBody) as typeof databaseError
+    } catch {
+      databaseError.message = 'Database returned a non-JSON error.'
+    }
+
+    const safeMessage = (value: unknown) => typeof value === 'string'
+      ? value.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+        .replace(/\bGG-[A-Z0-9-]{8,}\b/gi, '[reference]')
+        .slice(0, 240)
+      : undefined
+    const code = typeof databaseError.code === 'string' ? databaseError.code.slice(0, 32) : undefined
+    const message = safeMessage(databaseError.message)
+    const hint = safeMessage(databaseError.hint)
+    console.error('Ticket database request failed.', {
+      resource: path.split('?')[0],
+      status: response.status,
+      code,
+      message,
+      hint,
+    })
+    throw new Error(
+      message
+        ? `Ticket service is temporarily unavailable (${code || response.status}: ${message}).`
+        : 'Ticket service is temporarily unavailable.',
+    )
   }
 
   if (response.status === 204) return undefined as T
@@ -351,9 +381,6 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
     },
   })
   const safeName = escapeHtml(firstTicket.full_name)
-  const safeEventName = escapeHtml(firstTicket.event_name)
-  const safeEventTime = escapeHtml(eventTime)
-  const logoCid = `groove-garden-logo-${randomUUID()}@groovegarden`
   const formattedEventDate = new Date(`${firstTicket.event_date}T00:00:00Z`).toLocaleDateString('en-NG', {
     timeZone: 'UTC',
     weekday: 'long',
@@ -361,41 +388,32 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
     month: 'long',
     year: 'numeric',
   })
-  const safeFormattedEventDate = escapeHtml(formattedEventDate)
   const logo = await readFile(path.join(process.cwd(), 'public', 'banners', 'Groove-Garden-Email-Logo.png'))
   const ticketImages = await Promise.all(tickets.map(async ticket => ({
     ticket,
     cid: `ticket-${ticket.ticket_code}-${randomUUID()}@groovegarden`,
-    content: await QRCode.toBuffer(
-      isPreview ? 'PREVIEW-NOT-VALID' : ticket.ticket_code,
-      { errorCorrectionLevel: 'H', margin: 2, width: 320 },
-    ),
+    content: await createTicketPng({
+      ticketCode: ticket.ticket_code,
+      fullName: ticket.full_name,
+      email: isPreview ? 'Preview only - not for entry' : ticket.email,
+      eventName: ticket.event_name,
+      eventDate: formattedEventDate,
+      eventTime,
+      logoDataUri: `data:image/png;base64,${logo.toString('base64')}`,
+      qrDataUri: `data:image/png;base64,${(await QRCode.toBuffer(
+        isPreview ? 'PREVIEW-NOT-VALID' : ticket.ticket_code,
+        { errorCorrectionLevel: 'H', margin: 2, width: 320 },
+      )).toString('base64')}`,
+    }),
   })))
   const ticketCards = ticketImages.map(({ ticket, cid }) => `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;background:#fffaf0;border:1px solid #e85d04;border-radius:12px;border-collapse:separate;border-spacing:0;">
-      <tr>
-        <td class="gg-ticket-left" style="padding:15px 20px;color:#172c42;vertical-align:top;border-radius:11px 0 0 11px;">
-          <img src="cid:${logoCid}" width="145" height="61" alt="Groove Garden" style="display:block;width:145px;height:61px;object-fit:contain;object-position:left center;margin:0 0 7px;" />
-          <div style="font:700 10px Arial,sans-serif;letter-spacing:2px;color:#d85213;">GROOVE GARDEN TICKET</div>
-          <div style="font:700 24px/1.12 Arial,sans-serif;color:#142b43;margin:6px 0 11px;">${safeEventName}</div>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="font:13px/1.6 Arial,sans-serif;color:#273d52;">
-            <tr><td style="padding:3px 16px 3px 0;color:#7a7d7e;">DATE</td><td style="padding:3px 0;font-weight:bold;">${safeFormattedEventDate}</td></tr>
-            <tr><td style="padding:3px 16px 3px 0;color:#7a7d7e;">TIME</td><td style="padding:3px 0;font-weight:bold;">${safeEventTime}</td></tr>
-            <tr><td style="padding:3px 16px 3px 0;color:#7a7d7e;">NAME</td><td style="padding:3px 0;font-weight:bold;">${escapeHtml(ticket.full_name)}</td></tr>
-            <tr><td style="padding:3px 16px 3px 0;color:#7a7d7e;">EMAIL</td><td style="padding:3px 0;font-weight:bold;word-break:break-word;">${escapeHtml(ticket.email)}</td></tr>
-          </table>
-          <div style="border-top:1px solid #e8dfcf;margin-top:10px;padding:9px 10px 0;color:#7f2417;background:#fff3ec;font:bold 11px/1.5 Arial,sans-serif;">
-            This ticket is valid for one entry only. It can be used once at the gate and will be marked as used after check-in.
-          </div>
-        </td>
-        <td class="gg-ticket-right" width="190" align="center" style="width:190px;padding:13px 10px;background:#d85213;border-left:2px dashed #fffaf0;vertical-align:middle;border-radius:0 11px 11px 0;">
-          <div style="font:700 10px Arial,sans-serif;letter-spacing:2px;color:#fff4e5;">TICKET ID</div>
-          <div style="display:inline-block;color:#172c42;background:#fffaf0;border-radius:6px;font:bold 27px/1 monospace;letter-spacing:4px;padding:8px 10px;margin:6px 0 9px;">${escapeHtml(ticket.ticket_code)}</div>
-          <img src="cid:${cid}" alt="Ticket QR code" width="116" height="116" style="display:block;width:116px;height:116px;margin:0 auto;background:#fff;padding:6px;border-radius:6px;" />
-          <div style="margin-top:7px;color:#fff4e5;font:9px/1.35 Arial,sans-serif;letter-spacing:.7px;">PRESENT AT THE GATE</div>
-          <a href="${createTicketDownloadUrl(ticket.ticket_code)}" style="display:inline-block;margin-top:10px;padding:8px 10px;color:#172c42;background:#fffaf0;border-radius:5px;font:bold 10px Arial,sans-serif;text-decoration:none;">DOWNLOAD TICKET</a>
-        </td>
-      </tr>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;border:1px solid #e85d04;border-radius:12px;border-collapse:separate;border-spacing:0;">
+      <tr><td align="center" style="padding:8px;background:#fffaf0;border-radius:11px;">
+        <img src="cid:${cid}" alt="Groove Garden ticket for ${escapeHtml(ticket.full_name)}; ticket ID ${escapeHtml(ticket.ticket_code)}; includes logo and QR code" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;" />
+      </td></tr>
+      <tr><td align="center" style="padding:12px;background:#fffaf0;">
+        <a href="${createTicketDownloadUrl(ticket.ticket_code)}" style="display:inline-block;padding:10px 14px;color:#172c42;background:#fffaf0;border:1px solid #d85213;border-radius:5px;font:bold 11px Arial,sans-serif;text-decoration:none;">DOWNLOAD TICKET PNG</a>
+      </td></tr>
     </table>
   `).join('')
 
@@ -406,19 +424,13 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
       ? `Groove Garden ticket design preview - ${firstTicket.event_name}`
       : `Your Groove Garden ticket${tickets.length > 1 ? 's' : ''} - ${firstTicket.event_name}`,
     attachments: [
-      {
-        filename: 'groove-garden-logo.png',
-        content: logo,
-        contentType: 'image/png',
-        contentDisposition: 'inline' as const,
-        cid: logoCid,
-      },
       ...ticketImages.map(({ ticket, cid, content }) => ({
         filename: `groove-garden-ticket-${ticket.ticket_code}.png`,
         content,
         contentType: 'image/png',
         contentDisposition: 'inline' as const,
         cid,
+        headers: { 'X-Attachment-Id': cid },
       })),
     ],
     text: [
@@ -442,12 +454,7 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
       `View event details: ${createTicketEventDetailsUrl()}`,
       'Groove Garden',
     ].join('\n'),
-    html: `<!doctype html><html><head><style>
-      @media only screen and (max-width:560px) {
-        .gg-ticket-left,.gg-ticket-right { display:block !important; width:auto !important; }
-        .gg-ticket-right { border-left:0 !important; border-top:2px dashed #fffaf0 !important; }
-      }
-    </style></head><body style="margin:0;background:#f1eee8;padding:24px;font-family:Arial,sans-serif;color:#172c42;">
+    html: `<!doctype html><html><body style="margin:0;background:#f1eee8;padding:24px;font-family:Arial,sans-serif;color:#172c42;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;">
           <tr><td style="padding:10px 4px 18px;font:12px Arial,sans-serif;color:#69747c;">${isPreview ? 'GROOVE GARDEN - TICKET DESIGN PREVIEW - NOT VALID FOR ENTRY' : 'GROOVE GARDEN - PAYMENT CONFIRMED'}</td></tr>

@@ -198,21 +198,6 @@
   animation-delay: -26s;
 }
 
-:root[data-theme='halloween'] .halloween-pumpkin {
-  position: fixed;
-  right: clamp(1rem, 3vw, 2.5rem);
-  bottom: clamp(1rem, 3vh, 2rem);
-  z-index: 850;
-  pointer-events: none;
-  font-size: clamp(2.8rem, 5vw, 4.2rem);
-  line-height: 1;
-  filter: drop-shadow(0 0 18px rgba(255, 139, 56, 0.5));
-  animation: halloween-pumpkin-bob 3.2s ease-in-out infinite;
-}
-@keyframes halloween-pumpkin-bob {
-  0%, 100% { transform: translateY(0) rotate(-5deg); }
-  50% { transform: translateY(-10px) rotate(5deg); }
-}
 @keyframes halloween-ghost-flight {
   0% { transform: translate3d(-5vw, 0, 0) rotate(-8deg); }
   25% { transform: translate3d(27vw, -16px, 0) rotate(5deg); }
@@ -228,7 +213,6 @@
   :root[data-theme='halloween'] .halloween-ghost-4 { left: 66%; }
   :root[data-theme='halloween'] .halloween-ghost-5 { left: 82%; }
   :root[data-theme='halloween'] .halloween-ghost-6 { left: 38%; }
-  :root[data-theme='halloween'] .halloween-pumpkin { animation: none; }
 }
 
 .independence-welcome { display: none; position: fixed; inset: 0; z-index: 1100; pointer-events: none; overflow: hidden; }
@@ -1275,7 +1259,7 @@ body {
 .ticket-sales-unavailable > strong { display: block; color: var(--cream); font: 600 0.9rem var(--f-sans); }
 .ticket-sales-unavailable > p { margin-top: 0.55rem; color: var(--cream-40); font: 0.7rem/1.6 var(--f-mono); }
 .event-support-note {
-  margin: -1.6rem 0 2rem;
+  margin: 1.5rem 0 0;
   padding: 0.9rem 1rem;
   color: rgba(240,235,224,0.64);
   border-left: 2px solid rgba(var(--fire-rgb),0.72);

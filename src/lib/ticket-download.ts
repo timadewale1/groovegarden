@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import sharp from 'sharp'
 
 function getTicketDownloadSecret() {
   const secret =
@@ -87,4 +88,8 @@ export function createTicketSvg(input: {
   <text x="832" y="326" text-anchor="middle" fill="#fff4e5" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="1">PRESENT AT THE GATE</text>
   <text x="832" y="397" text-anchor="middle" fill="#fff4e5" font-family="Arial,sans-serif" font-size="12">GROOVE GARDEN</text>
 </svg>`
+}
+
+export async function createTicketPng(input: Parameters<typeof createTicketSvg>[0]) {
+  return sharp(Buffer.from(createTicketSvg(input))).png().toBuffer()
 }

@@ -1839,12 +1839,6 @@ function UpcomingEvent({
               ))}
             </div>
 
-            <p className="event-support-note">
-              For more enquiries or payment issues, contact{' '}
-              <a href="mailto:groovegardenhq@gmail.com">groovegardenhq@gmail.com</a>
-              {' '}and our team will be happy to assist you.
-            </p>
-
             <div className="flex flex-col sm:flex-row gap-4">
               <TicketPurchase/>
               <Link href="/contact" className="btn btn-fire">
@@ -1854,6 +1848,12 @@ function UpcomingEvent({
                 View The Vibe
               </Link>
             </div>
+
+            <p className="event-support-note">
+              For more enquiries or payment issues, contact{' '}
+              <a href="mailto:groovegardenhq@gmail.com">groovegardenhq@gmail.com</a>
+              {' '}and our team will be happy to assist you.
+            </p>
           </motion.div>
         </div>
       </div>
@@ -1893,9 +1893,9 @@ export default function HomePage() {
             transition={{ duration:0.8, ease:EX }}
           >
             <Hero/>
+            <UpcomingEvent flyer={activeFlyer} edition={activeEdition} isEasterSeason={isEasterSeason}/>
             <Marquee/>
             <WhyGrooveGarden/>
-            <UpcomingEvent flyer={activeFlyer} edition={activeEdition} isEasterSeason={isEasterSeason}/>
             <hr style={{ border:'none', height:'1px', background:'linear-gradient(90deg,transparent,rgba(240,235,224,0.07),transparent)' }}/>
             <EventsGallery images={images}/>
             <hr style={{ border:'none', height:'1px', background:'linear-gradient(90deg,transparent,rgba(240,235,224,0.07),transparent)' }}/>
