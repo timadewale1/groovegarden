@@ -1230,7 +1230,19 @@ body {
 .ticket-confirmation-event > strong { display: block; margin-top: 0.45rem; color: var(--cream); font: 600 0.9rem/1.4 var(--f-sans); }
 .ticket-confirmation-event > small { display: block; margin-top: 0.4rem; color: var(--cream-75); font: 0.66rem/1.5 var(--f-mono); }
 .ticket-confirmation-label { margin-top: 1.2rem; color: var(--cream-40); }
-.ticket-confirmation-codes { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.ticket-confirmation-codes { display: grid; gap: 0.75rem; margin-top: 1rem; }
+.ticket-confirmation-ticket {
+  overflow: hidden;
+  border: 1px solid rgba(var(--fire-rgb),0.55);
+  border-radius: 9px;
+  background: #fffaf0;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+}
+.ticket-confirmation-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
 .ticket-confirmation-code {
   padding: 0.85rem;
   color: var(--fire-hot);
@@ -1242,7 +1254,43 @@ body {
   text-align: center;
 }
 .ticket-confirmation-message { margin-top: 0.9rem; color: var(--cream-75); font: 0.74rem/1.6 var(--f-mono); }
-.ticket-dialog-done { margin-top: 1.15rem; }
+.ticket-confirmation-disclaimer {
+  margin-top: 0.7rem;
+  padding: 0.75rem 0.85rem;
+  color: #ffd5c2;
+  border: 1px solid rgba(var(--fire-rgb),0.35);
+  border-radius: 7px;
+  background: rgba(var(--fire-rgb),0.1);
+  font: 700 0.7rem/1.55 var(--f-sans);
+}
+.ticket-confirmation-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  margin-top: 1.15rem;
+}
+.ticket-dialog-download-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 0.9rem;
+  color: var(--cream);
+  border: 1px solid rgba(var(--fire-rgb),0.55);
+  border-radius: 6px;
+  background: rgba(var(--fire-rgb),0.1);
+  font: 600 0.62rem var(--f-sans);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+.ticket-dialog-download-button:hover { background: rgba(var(--fire-rgb),0.2); }
+.ticket-dialog-done {
+  width: auto;
+  min-width: 90px;
+  margin: 0;
+  padding: 0.65rem 1rem;
+}
 .ticket-dialog-bottom-error { margin: 0 clamp(1.25rem,5vw,2rem) 1.5rem; }
 .ticket-sales-unavailable { text-align: center; }
 .ticket-sales-unavailable-icon {
@@ -1258,7 +1306,25 @@ body {
 }
 .ticket-sales-unavailable > strong { display: block; color: var(--cream); font: 600 0.9rem var(--f-sans); }
 .ticket-sales-unavailable > p { margin-top: 0.55rem; color: var(--cream-40); font: 0.7rem/1.6 var(--f-mono); }
+.event-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.event-action-buttons {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 3rem;
+}
 .event-support-note {
+  position: relative;
+  display: block;
+  clear: both;
+  width: 100%;
   margin: 1.5rem 0 0;
   padding: 0.9rem 1rem;
   color: rgba(240,235,224,0.64);

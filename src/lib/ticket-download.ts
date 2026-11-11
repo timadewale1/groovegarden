@@ -18,16 +18,19 @@ function signatureFor(ticketCode: string) {
     .digest('base64url')
 }
 
-export function createTicketDownloadUrl(ticketCode: string) {
-  const siteUrl = getTicketPublicUrl()
-  const url = new URL('/api/tickets/download', siteUrl)
+export function createTicketDownloadPath(ticketCode: string) {
+  const url = new URL('/api/tickets/download', 'https://groovegarden.invalid')
   url.searchParams.set('code', ticketCode)
   url.searchParams.set('token', signatureFor(ticketCode))
-  return url.toString()
+  return `${url.pathname}${url.search}`
+}
+
+export function createTicketDownloadUrl(ticketCode: string) {
+  return new URL(createTicketDownloadPath(ticketCode), getTicketPublicUrl()).toString()
 }
 
 export function getTicketPublicUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') || 'https://groovegardenhq.vercel.app'
+  return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') || 'https://groovegardenhq.com'
 }
 
 export function createTicketEventDetailsUrl() {

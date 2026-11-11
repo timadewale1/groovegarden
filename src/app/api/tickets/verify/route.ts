@@ -3,6 +3,7 @@ import {
   isValidTicketReference,
   verifyAndIssueTickets,
 } from '@/lib/tickets'
+import { createTicketDownloadPath } from '@/lib/ticket-download'
 
 export async function POST(request: Request) {
   let body: unknown
@@ -37,7 +38,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       status: 'paid',
-      tickets: payment.tickets.map(ticket => ({ ticketCode: ticket.ticket_code })),
+      tickets: payment.tickets.map(ticket => ({
+        ticketCode: ticket.ticket_code,
+        downloadUrl: createTicketDownloadPath(ticket.ticket_code),
+      })),
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     console.error('Ticket payment verification failed.')

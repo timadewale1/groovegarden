@@ -1224,6 +1224,11 @@ type TicketCheckoutSettings = {
   maxSlots: number
 }
 
+type TicketConfirmation = {
+  ticketCode: string
+  downloadUrl: string
+}
+
 function formatTicketEventDate(date: string) {
   const parsed = new Date(`${date}T00:00:00Z`)
   return Number.isNaN(parsed.getTime())
@@ -1246,7 +1251,7 @@ function TicketPurchase() {
   const [phone, setPhone] = useState('')
   const [pendingReference, setPendingReference] = useState('')
   const paymentCheckRef = useRef<string | null>(null)
-  const [tickets, setTickets] = useState<string[]>([])
+  const [tickets, setTickets] = useState<TicketConfirmation[]>([])
   const [emailSent, setEmailSent] = useState(false)
   const [emailBusy, setEmailBusy] = useState(false)
   const [emailToast, setEmailToast] = useState<{ message: string; tone: 'success' | 'warning' } | null>(null)
@@ -1383,12 +1388,15 @@ function TicketPurchase() {
         if (
           !Array.isArray(result.tickets) ||
           !result.tickets.every(ticket =>
-            ticket && typeof ticket === 'object' && typeof (ticket as { ticketCode?: unknown }).ticketCode === 'string'
+            ticket &&
+            typeof ticket === 'object' &&
+            typeof (ticket as { ticketCode?: unknown }).ticketCode === 'string' &&
+            typeof (ticket as { downloadUrl?: unknown }).downloadUrl === 'string'
           )
         ) {
           throw new Error('Payment was confirmed, but ticket details could not be loaded. Please check payment again.')
         }
-        setTickets(result.tickets.map(ticket => (ticket as { ticketCode: string }).ticketCode))
+        setTickets(result.tickets as TicketConfirmation[])
         setEmailSent(false)
         setEmailToast({
           tone: 'success',
@@ -1542,25 +1550,46 @@ function TicketPurchase() {
                     <strong>{settings?.eventName}</strong>
                     <small>{settings?.eventDate ? formatTicketEventDate(settings.eventDate) : ''} · {settings?.eventTime}</small>
                   </div>
-                  <p className="ticket-confirmation-label">YOUR TICKET CODE</p>
                   <div className="ticket-confirmation-codes">
                     {tickets.map(ticket => (
-                      <div key={ticket} className="ticket-confirmation-code">
-                        {ticket}
+                      <div key={ticket.ticketCode} className="ticket-confirmation-ticket">
+                        <Image
+                          className="ticket-confirmation-image"
+                          src={ticket.downloadUrl}
+                          alt={`Groove Garden ticket ${ticket.ticketCode} with QR code`}
+                          width={1000}
+                          height={460}
+                          unoptimized
+                        />
                       </div>
                     ))}
                   </div>
                   <p className="ticket-confirmation-message">
                     {emailSent
-                      ? `Your ticket has been sent to ${email}. Present the code or QR at the entrance.`
+                      ? `Your ticket has been sent to ${email}. Check your inbox and spam folder. Present the code or QR at the entrance.`
                       : `Payment is confirmed, but email delivery is pending. Keep this code and retry to resend the ticket.`}
+                  </p>
+                  <p className="ticket-confirmation-disclaimer">
+                    This ticket is valid for one entry only and can be used once at the gate.
                   </p>
                   {!emailSent && pendingReference && (
                     <button type="button" className="ticket-dialog-secondary-button" disabled={emailBusy || isBusy} onClick={() => { void deliverTicketEmail(pendingReference) }}>
                       {emailBusy ? 'Sending ticket email…' : 'Retry email delivery'}
                     </button>
                   )}
-                  <button type="button" className="ticket-dialog-primary-button ticket-dialog-done" onClick={() => setIsOpen(false)}>Done</button>
+                  <div className="ticket-confirmation-actions">
+                    {tickets.map(ticket => (
+                      <a
+                        key={ticket.ticketCode}
+                        className="ticket-dialog-download-button"
+                        href={ticket.downloadUrl}
+                        download={`groove-garden-ticket-${ticket.ticketCode}.png`}
+                      >
+                        Download ticket
+                      </a>
+                    ))}
+                    <button type="button" className="ticket-dialog-primary-button ticket-dialog-done" onClick={() => setIsOpen(false)}>Done</button>
+                  </div>
                 </div>
               ) : settings?.enabled ? (
                 <>
@@ -1809,7 +1838,7 @@ function UpcomingEvent({
             )}
             <span className="div-fire" style={{ marginBottom:'3rem' }}/>
 
-            <div className="flex flex-col gap-6 mb-12">
+            <div className="event-details-list">
               {[
                 { icon:<RiMapPin2Line size={14}/>, label:'Venue', val:edition.venue },
                 { icon:<PiStarFill size={12}/>, label:'Date', val:edition.dateLabel },
@@ -1839,7 +1868,7 @@ function UpcomingEvent({
               ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="event-action-buttons">
               <TicketPurchase/>
               <Link href="/contact" className="btn btn-fire">
                 <span>Reserve a Cabana</span><FiArrowRight size={13}/>
