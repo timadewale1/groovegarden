@@ -1224,6 +1224,7 @@ function TicketPurchase() {
   const [quantity, setQuantity] = useState(1)
   const [quantityMenuOpen, setQuantityMenuOpen] = useState(false)
   const [activeQuantity, setActiveQuantity] = useState(1)
+  const [paymentCancelled, setPaymentCancelled] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -1391,12 +1392,12 @@ function TicketPurchase() {
     }
   }
 
-  const confirmPayment = async (reference: string) => {
+  const confirmPayment = async (reference: string, checkoutCancelled = false) => {
     if (paymentCheckRef.current === reference) return
     paymentCheckRef.current = reference
     setPendingReference(reference)
     setIsBusy(true)
-    setError('')
+    setError(checkoutCancelled ? 'Checkout was closed. Checking Paystack for the final payment status…' : '')
     try {
       const maxAttempts = 7
       let transientFailures = 0
@@ -1433,7 +1434,9 @@ function TicketPurchase() {
             await new Promise(resolve => window.setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)))
             continue
           }
-          setError('Paystack is still confirming this payment. No ticket has been issued yet. Do not pay again; use “Check payment again” shortly.')
+          setError(checkoutCancelled
+            ? 'Checkout was closed. Paystack has not confirmed a completed payment, so no ticket has been issued. If you completed payment before closing, use “Check payment again” shortly; otherwise, you can try checkout again.'
+            : 'Paystack is still confirming this payment. No ticket has been issued yet. Do not pay again; use “Check payment again” shortly.')
           return
         }
         if (!response.ok || result.ok !== true || result.status !== 'paid') {
@@ -1467,7 +1470,9 @@ function TicketPurchase() {
     } catch (verificationError) {
       const message = verificationError instanceof Error ? verificationError.message : ''
       setError(
-        /timeout|timed out|network|fetch|abort/i.test(message)
+        checkoutCancelled
+          ? 'Checkout was closed, but Paystack could not confirm the final status. No ticket has been issued yet. Use “Check payment again” before starting another checkout.'
+          : /timeout|timed out|network|fetch|abort/i.test(message)
           ? 'We could not reach Paystack to confirm the final status. No ticket is issued until payment is confirmed. Use “Check payment again” before starting another checkout.'
           : message || 'Payment verification is taking longer than expected. Check payment again before starting another checkout.',
       )
@@ -1482,6 +1487,7 @@ function TicketPurchase() {
     if (!settings?.enabled) return
 
     setIsBusy(true)
+    setPaymentCancelled(false)
     setError('')
     try {
       const response = await fetch('/api/tickets/initialize', {
@@ -1521,8 +1527,8 @@ function TicketPurchase() {
         lastName: name.trim().split(/\s+/).slice(1).join(' '),
         onSuccess: () => { void confirmPayment(paymentReference) },
         onCancel: () => {
-          setError('Checking Paystack for the final payment status…')
-          void confirmPayment(paymentReference)
+          setPaymentCancelled(true)
+          void confirmPayment(paymentReference, true)
         },
         onError: paymentError => {
           setError(paymentError.message || 'Checking Paystack for the final payment status…')
@@ -1734,7 +1740,7 @@ function TicketPurchase() {
                     </div>
                     {error && <p role="alert" className="ticket-dialog-error">{error}</p>}
                     {pendingReference && error && (
-                      <button type="button" className="ticket-dialog-secondary-button" disabled={isBusy} onClick={() => { void confirmPayment(pendingReference) }}>
+                      <button type="button" className="ticket-dialog-secondary-button" disabled={isBusy} onClick={() => { void confirmPayment(pendingReference, paymentCancelled) }}>
                         {isBusy ? 'Checking payment…' : 'Check payment again'}
                       </button>
                     )}
