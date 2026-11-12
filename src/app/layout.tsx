@@ -28,12 +28,16 @@ function Cursor() {
   const lag  = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+
+    let frame: number | null = null
     const move = (e: MouseEvent) => {
       pos.current = { x: e.clientX, y: e.clientY }
       if (dot.current) {
         dot.current.style.left = e.clientX + 'px'
         dot.current.style.top  = e.clientY + 'px'
       }
+      if (frame === null) frame = requestAnimationFrame(loop)
     }
     const loop = () => {
       lag.current.x += (pos.current.x - lag.current.x) * 0.09
@@ -42,11 +46,17 @@ function Cursor() {
         ring.current.style.left = lag.current.x + 'px'
         ring.current.style.top  = lag.current.y + 'px'
       }
-      requestAnimationFrame(loop)
+      if (Math.abs(pos.current.x - lag.current.x) + Math.abs(pos.current.y - lag.current.y) > 0.5) {
+        frame = requestAnimationFrame(loop)
+      } else {
+        frame = null
+      }
     }
     window.addEventListener('mousemove', move)
-    loop()
-    return () => window.removeEventListener('mousemove', move)
+    return () => {
+      window.removeEventListener('mousemove', move)
+      if (frame !== null) cancelAnimationFrame(frame)
+    }
   }, [])
 
   return (
@@ -154,8 +164,6 @@ function Navbar() {
     return () => window.removeEventListener('scroll', fn)
   }, [])
 
-  useEffect(() => { setOpen(false) }, [path])
-
   return (
     <motion.nav
       className="fixed top-0 left-0 right-0 z-[900]"
@@ -242,13 +250,13 @@ function Navbar() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.07, duration: 0.4 }}
                 >
-                  <Link href={href} className={`nav-item ${path===href?'active':''}`}
+                  <Link href={href} onClick={() => setOpen(false)} className={`nav-item ${path===href?'active':''}`}
                     style={{ fontSize: '0.9rem', letterSpacing: '0.14em' }}>
                     {label}
                   </Link>
                 </motion.div>
               ))}
-              <Link href="/contact" className="btn btn-fire self-start mt-2">
+              <Link href="/contact" onClick={() => setOpen(false)} className="btn btn-fire self-start mt-2">
                 <span>Book a Table</span><FiArrowRight size={12}/>
               </Link>
             </div>

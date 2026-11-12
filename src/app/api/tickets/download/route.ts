@@ -55,7 +55,7 @@ export async function GET(request: Request) {
 
     return new NextResponse(new Uint8Array(png), {
       headers: {
-        'Cache-Control': 'private, no-store',
+        'Cache-Control': 'private, max-age=3600, immutable',
         'Content-Disposition': `attachment; filename="groove-garden-ticket-${ticketCodeForSvg.toLowerCase()}.png"`,
         'Content-Length': String(png.length),
         'Content-Type': 'image/png',

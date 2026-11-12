@@ -4,7 +4,6 @@ import path from 'node:path'
 import nodemailer from 'nodemailer'
 import QRCode from 'qrcode'
 import {
-  createTicketDownloadUrl,
   createTicketEventDetailsUrl,
   createTicketPng,
 } from '@/lib/ticket-download'
@@ -41,12 +40,18 @@ export type TicketRedemption = {
 }
 
 type TicketOrderPayment = {
+  id: string
   reference: string
   email: string
   amount_kobo: number
   currency: string
   quantity: number
   status: 'pending' | 'paid' | 'failed'
+  full_name: string
+  phone: string
+  event_name: string
+  event_date: string
+  tickets: Array<{ ticket_code: string; slot_number: number }>
 }
 
 type TicketOrderForEmail = {
@@ -113,15 +118,16 @@ function hasRequiredSettings() {
 export function getPublicTicketSettings(): TicketSettings {
   const eventName = process.env.TICKET_EVENT_NAME?.trim()
   const eventDate = process.env.TICKET_EVENT_DATE?.trim()
+  const enabled = hasRequiredSettings()
 
   return {
-    enabled: hasRequiredSettings(),
+    enabled,
     eventName: eventName && !/placeholder|tba|to be announced/i.test(eventName)
       ? eventName
       : 'Next Groove Garden event',
     eventDate: eventDate && isValidFutureDate(eventDate) ? eventDate : 'To be announced',
     eventTime: process.env.TICKET_EVENT_TIME?.trim() || '9 PM till Sunrise',
-    ticketPriceNaira: hasRequiredSettings() ? getTicketPrice() : null,
+    ticketPriceNaira: enabled ? getTicketPrice() : null,
     maxSlots: MAX_TICKET_SLOTS,
   }
 }
@@ -271,10 +277,30 @@ type PaystackVerification = {
 export async function verifyAndIssueTickets(reference: string): Promise<TicketPaymentVerification> {
   const settings = requirePaymentInfrastructure()
   const orders = await supabaseRequest<TicketOrderPayment[]>(
-    `ticket_orders?reference=eq.${encodeURIComponent(reference)}&select=reference,email,amount_kobo,currency,quantity,status`,
+    `ticket_orders?reference=eq.${encodeURIComponent(reference)}&select=id,reference,email,amount_kobo,currency,quantity,status,full_name,phone,event_name,event_date,tickets(ticket_code,slot_number)`,
   )
   const order = orders[0]
   if (!order) throw new Error('Ticket order was not found.')
+
+  if (order.status === 'paid') {
+    if (!Array.isArray(order.tickets) || order.tickets.length !== order.quantity) {
+      throw new Error('Ticket records could not be confirmed.')
+    }
+
+    return {
+      status: 'paid',
+      tickets: order.tickets.map(ticket => ({
+        ticket_code: ticket.ticket_code,
+        full_name: order.full_name,
+        email: order.email,
+        phone: order.phone,
+        event_name: order.event_name,
+        event_date: order.event_date,
+        quantity: order.quantity,
+        amount_kobo: order.amount_kobo,
+      })),
+    }
+  }
 
   const response = await fetch(
     `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
@@ -411,8 +437,8 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
       <tr><td align="center" style="padding:8px;background:#fffaf0;border-radius:11px;">
         <img src="cid:${cid}" alt="Groove Garden ticket for ${escapeHtml(ticket.full_name)}; ticket ID ${escapeHtml(ticket.ticket_code)}; includes logo and QR code" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;" />
       </td></tr>
-      <tr><td align="center" style="padding:12px;background:#fffaf0;">
-        <a href="${createTicketDownloadUrl(ticket.ticket_code)}" style="display:inline-block;padding:10px 14px;color:#172c42;background:#fffaf0;border:1px solid #d85213;border-radius:5px;font:bold 11px Arial,sans-serif;text-decoration:none;">DOWNLOAD TICKET PNG</a>
+      <tr><td align="center" style="padding:12px;background:#fffaf0;color:#69747c;font:11px/1.5 Arial,sans-serif;">
+        A downloadable PNG copy of this ticket is attached to this email.
       </td></tr>
     </table>
   `).join('')
@@ -425,12 +451,18 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
       : `Your Groove Garden ticket${tickets.length > 1 ? 's' : ''} - ${firstTicket.event_name}`,
     attachments: [
       ...ticketImages.map(({ ticket, cid, content }) => ({
-        filename: `groove-garden-ticket-${ticket.ticket_code}.png`,
+        filename: `groove-garden-ticket-display-${ticket.ticket_code}.png`,
         content,
         contentType: 'image/png',
         contentDisposition: 'inline' as const,
         cid,
         headers: { 'X-Attachment-Id': cid },
+      })),
+      ...ticketImages.map(({ ticket, content }) => ({
+        filename: `groove-garden-ticket-${ticket.ticket_code}.png`,
+        content,
+        contentType: 'image/png',
+        contentDisposition: 'attachment' as const,
       })),
     ],
     text: [
@@ -448,7 +480,7 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
         : [`Amount paid: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')}`]),
       `Ticket IDs: ${tickets.map(ticket => ticket.ticket_code).join(', ')}`,
       ...(isPreview ? ['PREVIEW ONLY - This ticket and QR code are not valid for entry.'] : []),
-      ...tickets.map(ticket => `Download ticket: ${createTicketDownloadUrl(ticket.ticket_code)}`),
+      'A downloadable PNG copy of your ticket is attached to this email.',
       'This ticket is valid for one entry only and can be used once at the gate.',
       'For more enquiries or payment issues, contact groovegardenhq@gmail.com and our team will assist you.',
       `View event details: ${createTicketEventDetailsUrl()}`,
@@ -460,7 +492,7 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
           <tr><td style="padding:10px 4px 18px;font:12px Arial,sans-serif;color:#69747c;">${isPreview ? 'GROOVE GARDEN - TICKET DESIGN PREVIEW - NOT VALID FOR ENTRY' : 'GROOVE GARDEN - PAYMENT CONFIRMED'}</td></tr>
           <tr><td style="font:15px/1.6 Arial,sans-serif;color:#273d52;">Hi ${safeName}, ${isPreview ? 'this is a design preview only. It is not a purchase or valid entry ticket.' : 'your payment is confirmed. Your personal event ticket is below.'}</td></tr>
           <tr><td>${ticketCards}</td></tr>
-          <tr><td style="padding:0 4px;color:#69747c;font:12px/1.6 Arial,sans-serif;">${isPreview ? `Ticket price shown: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')} - This preview and its QR code are not valid for entry.` : `Paid: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')} - Keep this ticket available and present it at the entrance. A regular camera scan only displays your code; only authorized staff check-in can validate and redeem it.`}</td></tr>
+          <tr><td style="padding:0 4px;color:#69747c;font:12px/1.6 Arial,sans-serif;">${isPreview ? `Ticket price shown: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')} - This preview and its QR code are not valid for entry.` : `Paid: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')} - Keep this ticket available and present it at the entrance.`}</td></tr>
           <tr><td align="center" style="padding:18px 4px 4px;"><a href="${createTicketEventDetailsUrl()}" style="display:inline-block;padding:12px 20px;color:#fffaf0;background:#142b43;border-radius:6px;font:bold 12px Arial,sans-serif;text-decoration:none;letter-spacing:1px;">VIEW EVENT DETAILS</a></td></tr>
           <tr><td style="padding:12px 4px 0;color:#69747c;font:12px/1.6 Arial,sans-serif;">For more enquiries or payment issues, contact <a href="mailto:groovegardenhq@gmail.com" style="color:#d85213;font-weight:bold;">groovegardenhq@gmail.com</a> and our team will be happy to assist you.</td></tr>
         </table>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, useScroll, useTransform, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
@@ -489,33 +490,6 @@ function Hero() {
   // Fade only after stats row is fully visible (e.g., after 0.8 scroll progress)
   const fade = useTransform(scrollYProgress, [0, 0.8], [1, 0])
   const isEasterSeason = getLagosDateKey() <= '2026-04-13'
-
-  useEffect(() => {
-    const stop = playWhistleLoop()
-
-    const resumeAudio = () => {
-      const AudioCtor = window.AudioContext || (window as typeof window & {
-        webkitAudioContext?: typeof AudioContext
-      }).webkitAudioContext
-
-      if (!AudioCtor) return
-
-      const ctx = new AudioCtor()
-      void ctx.resume().catch(() => undefined)
-      void ctx.close()
-    }
-
-    window.addEventListener('pointerdown', resumeAudio, { once: true })
-    window.addEventListener('touchstart', resumeAudio, { once: true })
-    window.addEventListener('keydown', resumeAudio, { once: true })
-
-    return () => {
-      stop()
-      window.removeEventListener('pointerdown', resumeAudio)
-      window.removeEventListener('touchstart', resumeAudio)
-      window.removeEventListener('keydown', resumeAudio)
-    }
-  }, [])
 
   useEffect(() => {
     const stop = playWhistleLoop()
@@ -1245,6 +1219,7 @@ function formatTicketEventDate(date: string) {
 function TicketPurchase() {
   const [settings, setSettings] = useState<TicketCheckoutSettings | null>(null)
   const [isOpen, setIsOpen] = useState(false)
+  const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -1256,6 +1231,10 @@ function TicketPurchase() {
   const [emailBusy, setEmailBusy] = useState(false)
   const [emailToast, setEmailToast] = useState<{ message: string; tone: 'success' | 'warning' } | null>(null)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setModalRoot(document.body)
+  }, [])
 
   useEffect(() => {
     fetch('/api/tickets/config', { cache: 'no-store' })
@@ -1506,10 +1485,11 @@ function TicketPurchase() {
         <span>Get Tickets</span><FiArrowRight size={13}/>
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
+      {modalRoot && createPortal(
+        <AnimatePresence>
+          {isOpen && (
           <motion.div
-            className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4"
             style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(10px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1567,7 +1547,7 @@ function TicketPurchase() {
                   <p className="ticket-confirmation-message">
                     {emailSent
                       ? `Your ticket has been sent to ${email}. Check your inbox and spam folder. Present the code or QR at the entrance.`
-                      : `Payment is confirmed, but email delivery is pending. Keep this code and retry to resend the ticket.`}
+                      : `Your ticket is shown above. A copy will also be sent to ${email}; check your inbox and spam folder. Present the code or QR at the entrance.`}
                   </p>
                   <p className="ticket-confirmation-disclaimer">
                     This ticket is valid for one entry only and can be used once at the gate.
@@ -1646,8 +1626,10 @@ function TicketPurchase() {
               {error && tickets.length > 0 && <p role="alert" className="ticket-dialog-error ticket-dialog-bottom-error">{error}</p>}
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        modalRoot,
+      )}
     </>
   )
 }

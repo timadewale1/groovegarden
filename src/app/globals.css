@@ -684,6 +684,7 @@ body {
   body { cursor: auto; }
   .cur-dot, .cur-ring { display: none; }
   .tilt-l, .tilt-r, .tilt-sm-l, .tilt-sm-r { transform: none !important; }
+  .has-noise::before { animation: none; }
 }
 
 /* ── SPLASH ──────────────────────────────────────────────── */

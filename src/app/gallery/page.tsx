@@ -546,21 +546,14 @@ function VideoGrid({ videos }: { videos: Video[] }) {
   const startIdx  = (page - 1) * VIDEOS_PER_PAGE
   const pageVids  = videos.slice(startIdx, startIdx + VIDEOS_PER_PAGE)
 
-  // Fetch YouTube metadata on mount with delay to prevent initial hang
   useEffect(() => {
     const timer = setTimeout(() => {
-      const fetchAll = async () => {
-        const ytVideos = YOUTUBE_VIDEOS
-        const meta: typeof ytMetadata = {}
-        for (const yt of ytVideos) {
-          const data = await fetchYouTubeMetadata(yt.id)
-          if (data) {
-            meta[yt.id] = data
-          }
-        }
-        setYtMetadata(meta)
-      }
-      fetchAll()
+      void Promise.all(YOUTUBE_VIDEOS.map(async video => {
+        const metadata = await fetchYouTubeMetadata(video.id)
+        return metadata ? [video.id, metadata] as const : null
+      })).then(results => {
+        setYtMetadata(Object.fromEntries(results.filter(result => result !== null)))
+      })
     }, 500) // Defer metadata fetch by 500ms to prevent UI hang
     return () => clearTimeout(timer)
   }, [])
