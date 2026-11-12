@@ -1644,10 +1644,13 @@ function UpcomingEvent({
   isEasterSeason: boolean
 }) {
   const isWhistleFiesta = edition.key === 'whistle-fiesta' && isWhistleFiestaWindow()
+  const isCarnival = edition.key === 'groove-garden-carnival-2026'
 
   return (
-    <section id="upcoming-event" className="sec" style={{
-      background:'linear-gradient(160deg, #130e08 0%, #0a0f0d 40%, #0d2b18 100%)',
+    <section id="upcoming-event" className={`sec upcoming-event-section${isCarnival ? ' carnival-edition' : ''}`} style={{
+      background: isCarnival
+        ? 'linear-gradient(145deg, #17101e 0%, #0a0f0d 54%, #201125 100%)'
+        : 'linear-gradient(160deg, #130e08 0%, #0a0f0d 40%, #0d2b18 100%)',
       borderTop:'1px solid rgba(240,235,224,0.05)',
       borderBottom:'1px solid rgba(240,235,224,0.05)',
       position:'relative',
@@ -1766,7 +1769,7 @@ function UpcomingEvent({
       <div className="wrap">
         <div className="text-center mb-20">
           <div className="eyebrow justify-center" style={{ justifyContent:'center' }}>
-            <PiTreePalm size={11}/> Next Edition <PiTreePalm size={11}/>
+            <PiTreePalm size={11}/> {isCarnival ? 'Carnival Night · November 30' : 'Next Edition'} <PiTreePalm size={11}/>
           </div>
         </div>
 
@@ -1800,7 +1803,7 @@ function UpcomingEvent({
 
             <div className="absolute -top-4 -right-4 px-5 py-2"
               style={{ background:'var(--g-fire)', fontFamily:'var(--f-sans)', fontWeight:700, fontSize:'0.58rem', letterSpacing:'0.2em', color:'var(--bg-base)', boxShadow:'0 8px 32px rgba(var(--fire-rgb),0.4)' }}>
-              NEXT EDITION
+              {isCarnival ? 'CARNIVAL 2026' : 'NEXT EDITION'}
             </div>
           </motion.div>
 
@@ -1903,8 +1906,8 @@ export default function HomePage() {
             animate={{ opacity:1 }}
             transition={{ duration:0.8, ease:EX }}
           >
-            <Hero/>
             <UpcomingEvent flyer={activeFlyer} edition={activeEdition} isEasterSeason={isEasterSeason}/>
+            <Hero/>
             <Marquee/>
             <WhyGrooveGarden/>
             <hr style={{ border:'none', height:'1px', background:'linear-gradient(90deg,transparent,rgba(240,235,224,0.07),transparent)' }}/>

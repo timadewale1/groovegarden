@@ -80,12 +80,15 @@ function IndependenceTheme() {
       const dateKey = `${lookup.year}-${lookup.month}-${lookup.day}`
       const isIndependenceWeek = dateKey >= '2026-09-30' && dateKey <= '2026-10-05'
       const isHalloweenSeason = dateKey >= '2026-10-31' && dateKey <= '2026-11-03'
+      const isCarnivalSeason = dateKey >= '2026-11-12' && dateKey <= '2026-12-01'
       const wasGreetingDismissed = document.documentElement.dataset.independenceGreeting === 'dismissed'
 
       if (isIndependenceWeek) {
         document.documentElement.dataset.theme = 'independence'
       } else if (isHalloweenSeason) {
         document.documentElement.dataset.theme = 'halloween'
+      } else if (isCarnivalSeason) {
+        document.documentElement.dataset.theme = 'carnival'
       } else {
         delete document.documentElement.dataset.theme
       }
