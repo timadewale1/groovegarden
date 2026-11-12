@@ -67,6 +67,66 @@ function Cursor() {
   )
 }
 
+function GoEAudio() {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false)
+
+  useEffect(() => {
+    const audio = new Audio('/GOE.mp3')
+    audio.preload = 'auto'
+    audio.loop = false
+    audioRef.current = audio
+
+    const removeGestureListeners = () => {
+      window.removeEventListener('pointerdown', retryPlayback)
+      window.removeEventListener('keydown', retryPlayback)
+    }
+
+    const handlePlaying = () => {
+      setAutoplayBlocked(false)
+      removeGestureListeners()
+    }
+
+    const retryPlayback = () => {
+      removeGestureListeners()
+      void audio.play().catch(() => {
+        if (audio.paused) setAutoplayBlocked(true)
+      })
+    }
+
+    audio.addEventListener('playing', handlePlaying)
+    window.addEventListener('pointerdown', retryPlayback, { once: true })
+    window.addEventListener('keydown', retryPlayback, { once: true })
+    void audio.play().catch(() => {
+      if (audio.paused) setAutoplayBlocked(true)
+    })
+
+    return () => {
+      audio.removeEventListener('playing', handlePlaying)
+      removeGestureListeners()
+      audio.pause()
+      audioRef.current = null
+    }
+  }, [])
+
+  if (!autoplayBlocked) return null
+
+  return (
+    <button
+      type="button"
+      className="goe-audio-prompt"
+      onClick={() => {
+        const audio = audioRef.current
+        if (!audio) return
+        void audio.play().catch(() => setAutoplayBlocked(true))
+      }}
+    >
+      <PiMusicNoteFill size={14} aria-hidden="true"/>
+      Tap to play GOE intro
+    </button>
+  )
+}
+
 function IndependenceTheme() {
   useEffect(() => {
     const updateTheme = () => {
@@ -412,6 +472,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={isTicketVerification ? 'verifier-standalone' : 'has-noise'}>
+        {!isTicketVerification && <GoEAudio />}
         {isTicketVerification ? (
           children
         ) : (
