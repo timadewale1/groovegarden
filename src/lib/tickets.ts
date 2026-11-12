@@ -8,7 +8,7 @@ import {
   createTicketPng,
 } from '@/lib/ticket-download'
 
-export const MAX_TICKET_SLOTS = 1
+export const MAX_TICKETS = 5
 
 export type TicketSettings = {
   enabled: boolean
@@ -16,7 +16,7 @@ export type TicketSettings = {
   eventDate: string
   eventTime: string
   ticketPriceNaira: number | null
-  maxSlots: number
+  maxTickets: number
 }
 
 export type IssuedTicket = {
@@ -128,7 +128,7 @@ export function getPublicTicketSettings(): TicketSettings {
     eventDate: eventDate && isValidFutureDate(eventDate) ? eventDate : 'To be announced',
     eventTime: process.env.TICKET_EVENT_TIME?.trim() || '9 PM till Sunrise',
     ticketPriceNaira: enabled ? getTicketPrice() : null,
-    maxSlots: MAX_TICKET_SLOTS,
+    maxTickets: MAX_TICKETS,
   }
 }
 
@@ -231,6 +231,10 @@ export async function createPendingTicketOrder(input: {
   phone: string
   quantity: number
 }) {
+  if (!Number.isInteger(input.quantity) || input.quantity < 1 || input.quantity > MAX_TICKETS) {
+    throw new Error(`Choose between 1 and ${MAX_TICKETS} tickets.`)
+  }
+
   const settings = requireTicketSettings()
   const reference = `GG-${randomUUID()}`
   const amountKobo = settings.ticketPriceNaira * input.quantity * 100
@@ -474,14 +478,14 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
       `Name: ${firstTicket.full_name}`,
       `Email: ${firstTicket.email}`,
       `Phone: ${firstTicket.phone}`,
-      `Ticket: 1 person`,
+      `Tickets: ${tickets.length}`,
       ...(isPreview
         ? [`Ticket price shown in the design: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')}`]
         : [`Amount paid: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')}`]),
       `Ticket IDs: ${tickets.map(ticket => ticket.ticket_code).join(', ')}`,
       ...(isPreview ? ['PREVIEW ONLY - This ticket and QR code are not valid for entry.'] : []),
-      'A downloadable PNG copy of your ticket is attached to this email.',
-      'This ticket is valid for one entry only and can be used once at the gate.',
+      `A downloadable PNG copy of each ticket is attached to this email.`,
+      'Each ticket is valid for one entry only and can be used once at the gate.',
       'For more enquiries or payment issues, contact groovegardenhq@gmail.com and our team will assist you.',
       `View event details: ${createTicketEventDetailsUrl()}`,
       'Groove Garden',

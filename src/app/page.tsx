@@ -6,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { motion, useScroll, useTransform, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import {
-  FiArrowRight, FiArrowDown, FiArrowLeft
+  FiArrowRight, FiArrowDown, FiArrowLeft, FiChevronDown
 } from 'react-icons/fi'
 import {
   PiTreePalm, PiMusicNoteFill, PiLeafFill, PiStarFill
@@ -1195,7 +1195,7 @@ type TicketCheckoutSettings = {
   eventDate: string
   eventTime: string
   ticketPriceNaira: number | null
-  maxSlots: number
+  maxTickets: number
 }
 
 type TicketConfirmation = {
@@ -1221,16 +1221,41 @@ function TicketPurchase() {
   const [isOpen, setIsOpen] = useState(false)
   const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null)
   const [isBusy, setIsBusy] = useState(false)
+  const [quantity, setQuantity] = useState(1)
+  const [quantityMenuOpen, setQuantityMenuOpen] = useState(false)
+  const [activeQuantity, setActiveQuantity] = useState(1)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [pendingReference, setPendingReference] = useState('')
   const paymentCheckRef = useRef<string | null>(null)
+  const quantityPickerRef = useRef<HTMLDivElement | null>(null)
+  const quantityTriggerRef = useRef<HTMLButtonElement | null>(null)
   const [tickets, setTickets] = useState<TicketConfirmation[]>([])
   const [emailSent, setEmailSent] = useState(false)
   const [emailBusy, setEmailBusy] = useState(false)
+  const [ticketsDownloadBusy, setTicketsDownloadBusy] = useState(false)
   const [emailToast, setEmailToast] = useState<{ message: string; tone: 'success' | 'warning' } | null>(null)
   const [error, setError] = useState('')
+
+  async function downloadAllTickets() {
+    setTicketsDownloadBusy(true)
+    try {
+      for (const [index, ticket] of tickets.entries()) {
+        if (index > 0) {
+          await new Promise(resolve => window.setTimeout(resolve, 450))
+        }
+        const link = document.createElement('a')
+        link.href = ticket.downloadUrl
+        link.download = `groove-garden-ticket-${ticket.ticketCode}.png`
+        document.body.append(link)
+        link.click()
+        link.remove()
+      }
+    } finally {
+      setTicketsDownloadBusy(false)
+    }
+  }
 
   useEffect(() => {
     setModalRoot(document.body)
@@ -1252,7 +1277,9 @@ function TicketPurchase() {
             (result as TicketCheckoutSettings).ticketPriceNaira === null ||
             typeof (result as TicketCheckoutSettings).ticketPriceNaira === 'number'
           ) ||
-          typeof (result as TicketCheckoutSettings).maxSlots !== 'number'
+          !Number.isInteger((result as TicketCheckoutSettings).maxTickets) ||
+          (result as TicketCheckoutSettings).maxTickets < 1 ||
+          (result as TicketCheckoutSettings).maxTickets > 5
         ) {
           throw new Error('Ticket sales status response was invalid.')
         }
@@ -1271,12 +1298,65 @@ function TicketPurchase() {
   }, [isOpen, isBusy])
 
   useEffect(() => {
+    if (!quantityMenuOpen) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (event.target instanceof Node && !quantityPickerRef.current?.contains(event.target)) {
+        setQuantityMenuOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [quantityMenuOpen])
+
+  useEffect(() => {
     if (!emailToast) return
     const timeout = window.setTimeout(() => setEmailToast(null), 8000)
     return () => window.clearTimeout(timeout)
   }, [emailToast])
 
-  const total = settings?.ticketPriceNaira ?? 0
+  const total = (settings?.ticketPriceNaira ?? 0) * quantity
+  const quantityOptions = Array.from({ length: settings?.maxTickets ?? 0 }, (_, index) => index + 1)
+
+  const handleQuantityKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (!quantityMenuOpen) {
+        setActiveQuantity(quantity)
+        setQuantityMenuOpen(true)
+        return
+      }
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      const currentIndex = quantityOptions.indexOf(activeQuantity)
+      const nextIndex = (currentIndex + direction + quantityOptions.length) % quantityOptions.length
+      setActiveQuantity(quantityOptions[nextIndex])
+      return
+    }
+
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault()
+      if (!quantityMenuOpen) setQuantityMenuOpen(true)
+      setActiveQuantity(event.key === 'Home' ? quantityOptions[0] : quantityOptions[quantityOptions.length - 1])
+      return
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      if (quantityMenuOpen) {
+        setQuantity(activeQuantity)
+        setQuantityMenuOpen(false)
+      } else {
+        setActiveQuantity(quantity)
+        setQuantityMenuOpen(true)
+      }
+      return
+    }
+
+    if (event.key === 'Escape' && quantityMenuOpen) {
+      event.preventDefault()
+      event.stopPropagation()
+      setQuantityMenuOpen(false)
+    }
+  }
 
   const deliverTicketEmail = async (reference: string) => {
     setEmailBusy(true)
@@ -1407,7 +1487,7 @@ function TicketPurchase() {
       const response = await fetch('/api/tickets/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName: name, email, phone, quantity: 1 }),
+        body: JSON.stringify({ fullName: name, email, phone, quantity }),
       })
       const order = await response.json() as {
         reference?: unknown
@@ -1546,11 +1626,11 @@ function TicketPurchase() {
                   </div>
                   <p className="ticket-confirmation-message">
                     {emailSent
-                      ? `Your ticket has been sent to ${email}. Check your inbox and spam folder. Present the code or QR at the entrance.`
-                      : `Your ticket is shown above. A copy will also be sent to ${email}; check your inbox and spam folder. Present the code or QR at the entrance.`}
+                      ? `${tickets.length > 1 ? 'Your tickets have' : 'Your ticket has'} been sent to ${email}. Check your inbox and spam folder. Present each ticket code or QR at the entrance.`
+                      : `${tickets.length > 1 ? 'Your tickets are' : 'Your ticket is'} shown above. ${tickets.length > 1 ? 'Copies will' : 'A copy will'} also be sent to ${email}; check your inbox and spam folder. Present each ticket code or QR at the entrance.`}
                   </p>
                   <p className="ticket-confirmation-disclaimer">
-                    This ticket is valid for one entry only and can be used once at the gate.
+                    Each ticket is valid for one entry only and can be used once at the gate.
                   </p>
                   {!emailSent && pendingReference && (
                     <button type="button" className="ticket-dialog-secondary-button" disabled={emailBusy || isBusy} onClick={() => { void deliverTicketEmail(pendingReference) }}>
@@ -1558,16 +1638,14 @@ function TicketPurchase() {
                     </button>
                   )}
                   <div className="ticket-confirmation-actions">
-                    {tickets.map(ticket => (
-                      <a
-                        key={ticket.ticketCode}
-                        className="ticket-dialog-download-button"
-                        href={ticket.downloadUrl}
-                        download={`groove-garden-ticket-${ticket.ticketCode}.png`}
-                      >
-                        Download ticket
-                      </a>
-                    ))}
+                    <button
+                      type="button"
+                      className="ticket-dialog-download-button"
+                      onClick={() => { void downloadAllTickets() }}
+                      disabled={ticketsDownloadBusy}
+                    >
+                      {ticketsDownloadBusy ? 'Preparing tickets…' : `Download ${tickets.length > 1 ? 'all tickets' : 'ticket'}`}
+                    </button>
                     <button type="button" className="ticket-dialog-primary-button ticket-dialog-done" onClick={() => setIsOpen(false)}>Done</button>
                   </div>
                 </div>
@@ -1580,14 +1658,14 @@ function TicketPurchase() {
                       <small>{formatTicketEventDate(settings.eventDate)} <i/> {settings.eventTime}</small>
                     </div>
                     <div className="ticket-event-price">
-                      <span>ADMIT ONE</span>
+                      <span>PRICE PER TICKET</span>
                       <strong>₦{settings.ticketPriceNaira?.toLocaleString('en-NG')}</strong>
                     </div>
                   </div>
                   <form onSubmit={startCheckout} className="ticket-checkout-form">
                     <div className="ticket-checkout-form-heading">
                       <strong>Your details</strong>
-                      <span>One person per ticket</span>
+                      <span>Up to {settings.maxTickets} tickets per order</span>
                     </div>
                     <label className="ticket-form-label" htmlFor="ticket-name">Full name
                       <input id="ticket-name" className="field ticket-form-input" autoComplete="name" placeholder="Name on the ticket" required maxLength={100} value={name} onChange={event => setName(event.target.value)} />
@@ -1598,8 +1676,60 @@ function TicketPurchase() {
                     <label className="ticket-form-label" htmlFor="ticket-phone">Phone number
                       <input id="ticket-phone" className="field ticket-form-input" type="tel" autoComplete="tel" placeholder="Your contact number" required value={phone} onChange={event => setPhone(event.target.value)} />
                     </label>
+                    <div className="ticket-form-label">
+                      <span id="ticket-quantity-label">Number of tickets</span>
+                      <div className="ticket-quantity-picker" ref={quantityPickerRef}>
+                        <button
+                          ref={quantityTriggerRef}
+                          id="ticket-quantity"
+                          type="button"
+                          className="ticket-form-input ticket-quantity-trigger"
+                          role="combobox"
+                          aria-labelledby="ticket-quantity-label"
+                          aria-controls="ticket-quantity-options"
+                          aria-expanded={quantityMenuOpen}
+                          aria-haspopup="listbox"
+                          aria-activedescendant={quantityMenuOpen ? `ticket-quantity-option-${activeQuantity}` : undefined}
+                          onClick={() => {
+                            setActiveQuantity(quantity)
+                            setQuantityMenuOpen(open => !open)
+                          }}
+                          onKeyDown={handleQuantityKeyDown}
+                        >
+                          <span>{quantity} {quantity === 1 ? 'ticket' : 'tickets'}</span>
+                          <FiChevronDown size={16} aria-hidden="true"/>
+                        </button>
+                        {quantityMenuOpen && (
+                          <div id="ticket-quantity-options" className="ticket-quantity-options" role="listbox" aria-labelledby="ticket-quantity-label">
+                            {quantityOptions.map(count => (
+                              <button
+                                key={count}
+                                id={`ticket-quantity-option-${count}`}
+                                type="button"
+                                className={`ticket-quantity-option${count === quantity ? ' selected' : ''}${count === activeQuantity ? ' active' : ''}`}
+                                role="option"
+                                aria-selected={count === quantity}
+                                tabIndex={-1}
+                                onMouseEnter={() => setActiveQuantity(count)}
+                                onClick={() => {
+                                  setQuantity(count)
+                                  setQuantityMenuOpen(false)
+                                  quantityTriggerRef.current?.focus()
+                                }}
+                              >
+                                <span>{count} {count === 1 ? 'ticket' : 'tickets'}</span>
+                                <span className="ticket-quantity-option-meta">
+                                  <span>{settings.ticketPriceNaira === null ? '—' : `₦${(settings.ticketPriceNaira * count).toLocaleString('en-NG')}`}</span>
+                                  {count === quantity && <span className="ticket-quantity-check" aria-hidden="true">✓</span>}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <div className="ticket-total-row">
-                      <span>Total · 1 ticket</span>
+                      <span>Total · {quantity} {quantity === 1 ? 'ticket' : 'tickets'}</span>
                       <strong>₦{total.toLocaleString('en-NG')}</strong>
                     </div>
                     {error && <p role="alert" className="ticket-dialog-error">{error}</p>}

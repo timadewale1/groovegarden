@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
   createPendingTicketOrder,
-  MAX_TICKET_SLOTS,
+  MAX_TICKETS,
   requireTicketSettings,
 } from '@/lib/tickets'
 
@@ -33,8 +33,8 @@ export async function POST(request: Request) {
   if (!/^[+0-9()\-\s]{7,24}$/.test(phone) || phoneDigits.length < 7 || phoneDigits.length > 15) {
     return NextResponse.json({ error: 'Enter a valid phone number.' }, { status: 400 })
   }
-  if (quantity !== MAX_TICKET_SLOTS) {
-    return NextResponse.json({ error: 'Each checkout is for one person. Please choose one ticket.' }, { status: 400 })
+  if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_TICKETS) {
+    return NextResponse.json({ error: `Choose between 1 and ${MAX_TICKETS} tickets.` }, { status: 400 })
   }
 
   try {
