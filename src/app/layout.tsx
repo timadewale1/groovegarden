@@ -69,7 +69,8 @@ function Cursor() {
 
 function GoEAudio() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const [autoplayBlocked, setAutoplayBlocked] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [hasEnded, setHasEnded] = useState(false)
 
   useEffect(() => {
     const audio = new Audio('/GOE.mp3')
@@ -79,50 +80,75 @@ function GoEAudio() {
 
     const removeGestureListeners = () => {
       window.removeEventListener('pointerdown', retryPlayback)
+      window.removeEventListener('touchstart', retryPlayback)
+      window.removeEventListener('click', retryPlayback)
       window.removeEventListener('keydown', retryPlayback)
+      window.removeEventListener('wheel', retryPlayback)
     }
 
     const handlePlaying = () => {
-      setAutoplayBlocked(false)
+      setIsPlaying(true)
+      setHasEnded(false)
       removeGestureListeners()
     }
 
-    const retryPlayback = () => {
-      removeGestureListeners()
+    const handlePause = () => setIsPlaying(false)
+    const handleEnded = () => {
+      setIsPlaying(false)
+      setHasEnded(true)
+    }
+
+    const retryPlayback = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest('.goe-audio-prompt')) return
+      if (!audio.paused) return
       void audio.play().catch(() => {
-        if (audio.paused) setAutoplayBlocked(true)
+        setIsPlaying(false)
       })
     }
 
     audio.addEventListener('playing', handlePlaying)
-    window.addEventListener('pointerdown', retryPlayback, { once: true })
-    window.addEventListener('keydown', retryPlayback, { once: true })
+    audio.addEventListener('pause', handlePause)
+    audio.addEventListener('ended', handleEnded)
+    window.addEventListener('pointerdown', retryPlayback)
+    window.addEventListener('touchstart', retryPlayback)
+    window.addEventListener('click', retryPlayback)
+    window.addEventListener('keydown', retryPlayback)
+    window.addEventListener('wheel', retryPlayback)
     void audio.play().catch(() => {
-      if (audio.paused) setAutoplayBlocked(true)
+      setIsPlaying(false)
     })
 
     return () => {
       audio.removeEventListener('playing', handlePlaying)
+      audio.removeEventListener('pause', handlePause)
+      audio.removeEventListener('ended', handleEnded)
       removeGestureListeners()
       audio.pause()
       audioRef.current = null
     }
   }, [])
 
-  if (!autoplayBlocked) return null
+  const togglePlayback = () => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    if (audio.paused) {
+      if (hasEnded) audio.currentTime = 0
+      void audio.play().catch(() => setIsPlaying(false))
+    } else {
+      audio.pause()
+    }
+  }
 
   return (
     <button
       type="button"
       className="goe-audio-prompt"
-      onClick={() => {
-        const audio = audioRef.current
-        if (!audio) return
-        void audio.play().catch(() => setAutoplayBlocked(true))
-      }}
+      aria-pressed={isPlaying}
+      onClick={togglePlayback}
     >
       <PiMusicNoteFill size={14} aria-hidden="true"/>
-      Tap to play GOE intro
+      {isPlaying ? 'Pause GOE intro' : 'Play GOE intro'}
     </button>
   )
 }
