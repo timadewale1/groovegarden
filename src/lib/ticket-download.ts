@@ -91,10 +91,44 @@ export async function createTicketSvg(input: {
   eventName: string
   eventDate: string
   eventTime: string
+  ticketType?: 'entry' | 'cabana_regular' | 'cabana_premium'
+  cabanaName?: string | null
   logoDataUri: string
   qrDataUri: string
 }) {
   const font = await getTicketFont()
+
+  if (input.ticketType === 'cabana_regular' || input.ticketType === 'cabana_premium') {
+    const premium = input.ticketType === 'cabana_premium'
+    const accent = premium ? '#b18b4d' : '#c65b25'
+    const panel = premium ? '#25213a' : '#254134'
+    const cabanaName = input.cabanaName || 'Reserved Cabana'
+    const boldCabanaName = `${textPath(font, cabanaName, 49, 286, 34, panel, 590)}${textPath(font, cabanaName, 50, 286, 34, panel, 590)}`
+    const boldGuestName = `${textPath(font, `${input.fullName} & friends`, 128, 330, 16, '#273d52', 520)}${textPath(font, `${input.fullName} & friends`, 129, 330, 16, '#273d52', 520)}`
+    const tagsIncluded = premium ? '15 TAGS INCLUDED' : '10 TAGS INCLUDED'
+    const boldTagsIncluded = `${textPath(font, tagsIncluded, 49, 411, 17, accent, 610)}${textPath(font, tagsIncluded, 50, 411, 17, accent, 610)}`
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="460" viewBox="0 0 1000 460">
+  <rect x="10" y="10" width="980" height="440" rx="26" fill="#fffaf0" stroke="${accent}" stroke-width="4"/>
+  <path d="M700 12h264a24 24 0 0 1 24 24v388a24 24 0 0 1-24 24H700z" fill="${panel}"/>
+  <path d="M700 12v436" stroke="${accent}" stroke-width="3" stroke-dasharray="8 10"/>
+  <image href="${input.logoDataUri}" x="48" y="28" width="215" height="90" preserveAspectRatio="xMinYMid meet"/>
+  ${textPath(font, premium ? 'PREMIUM CABANA RESERVATION' : 'REGULAR CABANA RESERVATION', 49, 151, 15, accent, 610)}
+  ${textPath(font, input.eventName, 49, 198, 29, '#172c42', 610)}
+  ${textPath(font, 'RESERVED CABANA', 49, 236, 13, '#69747c')}
+  ${boldCabanaName}
+  ${textPath(font, 'GUEST', 49, 330, 13, '#69747c')}
+  ${boldGuestName}
+  ${textPath(font, input.eventDate, 49, 366, 15, '#273d52', 570)}
+  ${boldTagsIncluded}
+  ${centeredTextPath(font, 'TICKET ID', 832, 55, 15, '#fff4e5')}
+  <rect x="734" y="72" width="196" height="54" rx="8" fill="#fffaf0"/>
+  ${centeredTextPath(font, input.ticketCode, 832, 110, 32, '#172c42')}
+  <image href="${input.qrDataUri}" x="758" y="144" width="148" height="148" preserveAspectRatio="xMidYMid meet"/>
+  ${centeredTextPath(font, 'CABANA ENTRY', 832, 326, 13, '#fff4e5')}
+  ${centeredTextPath(font, premium ? 'PREMIUM' : 'REGULAR', 832, 397, 12, '#fff4e5')}
+</svg>`
+  }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="460" viewBox="0 0 1000 460">
   <rect x="10" y="10" width="980" height="440" rx="26" fill="#fffaf0" stroke="#e85d04" stroke-width="3"/>

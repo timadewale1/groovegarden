@@ -13,6 +13,8 @@ type Redemption = {
   event_name: string | null
   event_date: string | null
   used_at: string | null
+  ticket_type: 'entry' | 'cabana_regular' | 'cabana_premium' | null
+  cabana_name: string | null
 }
 
 export default function TicketVerificationClient() {
@@ -287,6 +289,12 @@ export default function TicketVerificationClient() {
                     <div className="verifier-guest-details">
                       <strong>{result.full_name}</strong>
                       <span>{result.event_name} · {result.event_date}</span>
+                      {result.cabana_name && (
+                        <span className="verifier-cabana-details">
+                          <b>{result.ticket_type === 'cabana_premium' ? 'PREMIUM CABANA' : 'REGULAR CABANA'}</b>
+                          <strong>{result.cabana_name}</strong>
+                        </span>
+                      )}
                       <span>Ticket ID <b>{result.ticket_code}</b></span>
                     </div>
                   ) : (

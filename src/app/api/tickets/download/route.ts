@@ -49,6 +49,8 @@ export async function GET(request: Request) {
       eventName: ticket?.event_name || process.env.TICKET_EVENT_NAME || 'Groove Garden',
       eventDate,
       eventTime,
+      ticketType: ticket?.ticket_type,
+      cabanaName: ticket?.cabana_name,
       logoDataUri: `data:image/png;base64,${logo.toString('base64')}`,
       qrDataUri: `data:image/png;base64,${qr.toString('base64')}`,
     })

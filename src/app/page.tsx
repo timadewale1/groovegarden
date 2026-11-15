@@ -1201,6 +1201,8 @@ type TicketCheckoutSettings = {
 type TicketConfirmation = {
   ticketCode: string
   downloadUrl: string
+  ticketType: 'entry' | 'cabana_regular' | 'cabana_premium'
+  cabanaName: string | null
 }
 
 function formatTicketEventDate(date: string) {
@@ -1453,7 +1455,9 @@ function TicketPurchase() {
             ticket &&
             typeof ticket === 'object' &&
             typeof (ticket as { ticketCode?: unknown }).ticketCode === 'string' &&
-            typeof (ticket as { downloadUrl?: unknown }).downloadUrl === 'string'
+            typeof (ticket as { downloadUrl?: unknown }).downloadUrl === 'string' &&
+            ['entry', 'cabana_regular', 'cabana_premium'].includes((ticket as { ticketType?: string }).ticketType ?? '') &&
+            ((ticket as { cabanaName?: unknown }).cabanaName === null || typeof (ticket as { cabanaName?: unknown }).cabanaName === 'string')
           )
         ) {
           throw new Error('Payment was confirmed, but ticket details could not be loaded. Please check payment again.')
@@ -1770,6 +1774,421 @@ function TicketPurchase() {
   )
 }
 
+type CabanaOption = {
+  name: string
+  ticketType: 'cabana_regular' | 'cabana_premium'
+  available: boolean
+}
+
+type CabanaCheckoutSettings = {
+  enabled: boolean
+  eventName: string
+  eventDate: string
+  eventTime: string
+  cabanas: CabanaOption[]
+}
+
+function CabanaReservation() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null)
+  const [settings, setSettings] = useState<CabanaCheckoutSettings | null>(null)
+  const [cabanaType, setCabanaType] = useState<'cabana_regular' | 'cabana_premium'>('cabana_regular')
+  const [cabanaName, setCabanaName] = useState('')
+  const [cabanaMenuOpen, setCabanaMenuOpen] = useState(false)
+  const [activeCabanaIndex, setActiveCabanaIndex] = useState(0)
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [reference, setReference] = useState('')
+  const [tickets, setTickets] = useState<TicketConfirmation[]>([])
+  const [emailSent, setEmailSent] = useState(false)
+  const [isBusy, setIsBusy] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [error, setError] = useState('')
+  const cabanaPickerRef = useRef<HTMLDivElement | null>(null)
+  const cabanaTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const paymentCheckRef = useRef(false)
+  const cabanaOrder = cabanaType === 'cabana_regular'
+    ? ['Annex 1', 'Annex 2', 'VIP 1', 'VIP 2', 'VIP 3', 'VIP 4', 'VIP 5', 'Crown buy n sell', 'Zinex', 'Snack station', 'Cabana 7']
+    : ['Platinum 1', 'Platinum 2', 'Platinum 3']
+  const cabanas = settings?.cabanas
+    .filter(item => item.ticketType === cabanaType)
+    .sort((first, second) => cabanaOrder.indexOf(first.name) - cabanaOrder.indexOf(second.name)) ?? []
+  const selectedCabana = cabanas.find(item => item.name === cabanaName)
+
+  useEffect(() => {
+    setModalRoot(document.body)
+  }, [])
+
+  const refreshAvailability = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      const response = await fetch('/api/cabanas/config', { cache: 'no-store' })
+      const result = await response.json() as CabanaCheckoutSettings & { error?: unknown }
+      if (!response.ok || !Array.isArray(result.cabanas)) {
+        throw new Error(typeof result.error === 'string' ? result.error : 'Cabana availability could not be loaded.')
+      }
+      setSettings(result)
+      setCabanaName(current => result.cabanas.some(item => item.name === current && item.available && item.ticketType === cabanaType) ? current : '')
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Cabana availability could not be loaded.')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [cabanaType])
+
+  useEffect(() => {
+    if (!isOpen || tickets.length) return
+    void refreshAvailability()
+    const interval = window.setInterval(() => { void refreshAvailability() }, 15_000)
+    return () => window.clearInterval(interval)
+  }, [isOpen, tickets.length, refreshAvailability])
+
+  useEffect(() => {
+    if (!cabanaMenuOpen) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (event.target instanceof Node && !cabanaPickerRef.current?.contains(event.target)) setCabanaMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [cabanaMenuOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isBusy) {
+        setCabanaMenuOpen(false)
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [isOpen, isBusy])
+
+  const sendReservationEmail = async (paymentReference: string) => {
+    try {
+      const response = await fetch('/api/tickets/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: paymentReference }),
+      })
+      const result = await response.json() as { ok?: unknown; emailSent?: unknown }
+      if (!response.ok || result.ok !== true) throw new Error('Email delivery is pending.')
+      setEmailSent(result.emailSent === true)
+      if (result.emailSent !== true) setError('Payment is confirmed, but the ticket email is still being delivered. Please retry below.')
+    } catch {
+      setEmailSent(false)
+      setError('Payment is confirmed, but the ticket email could not be sent yet. Please retry below.')
+    }
+  }
+
+  const confirmReservationPayment = async (paymentReference: string) => {
+    if (paymentCheckRef.current) return
+    paymentCheckRef.current = true
+    setIsBusy(true)
+    setError('Checking Paystack for the final payment status…')
+    try {
+      for (let attempt = 0; attempt < 7; attempt++) {
+        const response = await fetch('/api/tickets/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference: paymentReference }),
+          signal: AbortSignal.timeout(30_000),
+        })
+        const result = await response.json() as {
+          ok?: unknown
+          status?: unknown
+          error?: unknown
+          tickets?: unknown
+        }
+        if (result.status === 'failed') {
+          setReference('')
+          setError('Paystack confirmed that this payment did not complete. The cabana is available again; you can try checkout again.')
+          return
+        }
+        if (result.status === 'pending' && response.status === 202) {
+          if (attempt < 6) {
+            await new Promise(resolve => window.setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)))
+            continue
+          }
+          setError('Paystack is still confirming this payment. Your cabana is held for five minutes. Check payment again shortly; do not pay twice.')
+          return
+        }
+        if (!response.ok || result.ok !== true || result.status !== 'paid' || !Array.isArray(result.tickets)) {
+          throw new Error(typeof result.error === 'string' ? result.error : 'Payment verification failed. Check payment again before starting another checkout.')
+        }
+        const validTickets = result.tickets.filter((ticket): ticket is TicketConfirmation => {
+          if (!ticket || typeof ticket !== 'object') return false
+          const item = ticket as Partial<TicketConfirmation>
+          return typeof item.ticketCode === 'string' &&
+            typeof item.downloadUrl === 'string' &&
+            (item.ticketType === 'cabana_regular' || item.ticketType === 'cabana_premium') &&
+            typeof item.cabanaName === 'string'
+        })
+        if (!validTickets.length) throw new Error('Payment was confirmed, but cabana ticket details could not be loaded. Check payment again.')
+        setTickets(validTickets)
+        setError('')
+        void sendReservationEmail(paymentReference)
+        return
+      }
+    } catch (paymentError) {
+      setError(paymentError instanceof Error
+        ? paymentError.message
+        : 'Payment verification is unavailable. Check again before starting another checkout.')
+    } finally {
+      paymentCheckRef.current = false
+      setIsBusy(false)
+    }
+  }
+
+  const startReservation = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!settings?.enabled || !selectedCabana || !selectedCabana.available) return
+    setIsBusy(true)
+    setError('')
+    try {
+      const response = await fetch('/api/cabanas/reserve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, email, phone, cabanaName }),
+      })
+      const order = await response.json() as {
+        reference?: unknown
+        publicKey?: unknown
+        amountKobo?: unknown
+        error?: unknown
+      }
+      if (!response.ok) throw new Error(typeof order.error === 'string' ? order.error : 'Could not reserve this cabana.')
+      if (typeof order.reference !== 'string' || typeof order.publicKey !== 'string' || typeof order.amountKobo !== 'number') {
+        throw new Error('Cabana checkout could not be initialized. Please try again.')
+      }
+      const paymentReference = order.reference
+      setReference(paymentReference)
+      const { default: PaystackPop } = await import('@paystack/inline-js')
+      const paystack = new PaystackPop()
+      paystack.newTransaction({
+        key: order.publicKey,
+        email,
+        phone,
+        amount: order.amountKobo,
+        currency: 'NGN',
+        reference: paymentReference,
+        firstName: fullName.trim().split(/\s+/)[0],
+        lastName: fullName.trim().split(/\s+/).slice(1).join(' '),
+        onSuccess: () => { void confirmReservationPayment(paymentReference) },
+        onCancel: () => { void confirmReservationPayment(paymentReference) },
+        onError: paymentError => {
+          setError(paymentError.message || 'Checking Paystack for the final payment status…')
+          void confirmReservationPayment(paymentReference)
+        },
+      })
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error ? checkoutError.message : 'Could not start cabana checkout.')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const retryEmail = async () => {
+    if (!reference) return
+    setIsBusy(true)
+    await sendReservationEmail(reference)
+    setIsBusy(false)
+  }
+
+  const handleCabanaKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (!cabanaMenuOpen) {
+        setCabanaMenuOpen(true)
+        return
+      }
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      setActiveCabanaIndex(index => (index + direction + cabanas.length) % cabanas.length)
+    } else if (event.key === 'Escape' && cabanaMenuOpen) {
+      event.preventDefault()
+      setCabanaMenuOpen(false)
+    } else if ((event.key === 'Enter' || event.key === ' ') && cabanaMenuOpen) {
+      event.preventDefault()
+      const option = cabanas[activeCabanaIndex]
+      if (option?.available) setCabanaName(option.name)
+      setCabanaMenuOpen(false)
+    }
+  }
+
+  return (
+    <>
+      <button type="button" className="btn btn-fire" onClick={() => {
+        setError('')
+        if (tickets.length) {
+          setTickets([])
+          setReference('')
+          setEmailSent(false)
+        }
+        setIsOpen(true)
+      }}>
+        <span>Reserve a Cabana</span><FiArrowRight size={13}/>
+      </button>
+      {modalRoot && createPortal(
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4"
+              style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(10px)' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onMouseDown={event => {
+                if (event.target === event.currentTarget && !isBusy) setIsOpen(false)
+              }}
+            >
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cabana-dialog-title"
+                className="ticket-dialog-panel w-full max-w-lg max-h-[90vh] overflow-y-auto"
+                initial={{ y: 24, scale: 0.97 }}
+                animate={{ y: 0, scale: 1 }}
+                exit={{ y: 12, scale: 0.98 }}
+              >
+                <div className="ticket-dialog-heading">
+                  <div className="ticket-dialog-brand">
+                    <span className="ticket-dialog-brand-mark"><PiTreePalm size={13}/></span>
+                    <span>GROOVE GARDEN <i/> CABANA RESERVATION</span>
+                  </div>
+                  <button type="button" className="ticket-dialog-close" onClick={() => setIsOpen(false)} disabled={isBusy} aria-label="Close cabana reservation">×</button>
+                  <h2 id="cabana-dialog-title" className="ticket-dialog-title">Your own <em>corner.</em></h2>
+                  <p className="ticket-dialog-subtitle">Choose your cabana and secure it for the event.</p>
+                </div>
+                {tickets.length ? (
+                  <div className="ticket-confirmation">
+                    <div className="ticket-confirmation-event">
+                      <span>RESERVATION CONFIRMED</span>
+                      <strong>{tickets[0].cabanaName}</strong>
+                      <small>{settings?.eventName} · {settings?.eventDate}</small>
+                    </div>
+                    <div className="ticket-confirmation-codes">
+                      {tickets.map(ticket => (
+                        <div key={ticket.ticketCode} className="ticket-confirmation-ticket">
+                          <Image className="ticket-confirmation-image" src={ticket.downloadUrl} alt={`${ticket.cabanaName} cabana ticket ${ticket.ticketCode} with QR code`} width={1000} height={460} unoptimized/>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="ticket-confirmation-message">
+                      {emailSent
+                        ? `Your cabana ticket was sent to ${email}. Check your inbox and spam folder.`
+                        : `Your cabana ticket is shown above and will be sent to ${email}. Check your inbox and spam folder.`}
+                    </p>
+                    {error && <p role="alert" className="ticket-dialog-error">{error}</p>}
+                    {!emailSent && (
+                      <button type="button" className="ticket-dialog-secondary-button" disabled={isBusy} onClick={() => { void retryEmail() }}>
+                        {isBusy ? 'Sending ticket email…' : 'Retry email delivery'}
+                      </button>
+                    )}
+                    <div className="ticket-confirmation-actions">
+                      <a className="ticket-dialog-download-button" href={tickets[0].downloadUrl} download={`groove-garden-cabana-${tickets[0].ticketCode}.png`}>Download cabana ticket</a>
+                      <button type="button" className="ticket-dialog-primary-button ticket-dialog-done" onClick={() => setIsOpen(false)}>Done</button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={startReservation} className="ticket-checkout-form">
+                    <div className="cabana-type-options" role="group" aria-label="Cabana type">
+                      <button type="button" aria-pressed={cabanaType === 'cabana_regular'} className={`cabana-type-option${cabanaType === 'cabana_regular' ? ' selected' : ''}`} onClick={() => { setCabanaType('cabana_regular'); setCabanaName(''); setCabanaMenuOpen(false) }}>
+                        <span className="cabana-type-heading"><span className="cabana-type-radio" aria-hidden="true"/><span>REGULAR CABANA</span></span>
+                        <strong>₦100,000</strong>
+                        <span className="cabana-type-tags">10 ENTRY TAGS INCLUDED</span>
+                        {cabanaType === 'cabana_regular' && <span className="cabana-type-selected-label">SELECTED</span>}
+                      </button>
+                      <button type="button" aria-pressed={cabanaType === 'cabana_premium'} className={`cabana-type-option${cabanaType === 'cabana_premium' ? ' selected' : ''}`} onClick={() => { setCabanaType('cabana_premium'); setCabanaName(''); setCabanaMenuOpen(false) }}>
+                        <span className="cabana-type-heading"><span className="cabana-type-radio" aria-hidden="true"/><span>PREMIUM CABANA</span></span>
+                        <strong>₦200,000</strong>
+                        <span className="cabana-type-tags">15 ENTRY TAGS INCLUDED</span>
+                        {cabanaType === 'cabana_premium' && <span className="cabana-type-selected-label">SELECTED</span>}
+                      </button>
+                    </div>
+                    <label className="ticket-form-label">
+                      Choose your cabana
+                      <div className="ticket-quantity-picker" ref={cabanaPickerRef}>
+                        <button
+                          ref={cabanaTriggerRef}
+                          type="button"
+                          className="ticket-form-input ticket-quantity-trigger"
+                          role="combobox"
+                          aria-label="Choose your cabana"
+                          aria-controls="cabana-options"
+                          aria-expanded={cabanaMenuOpen}
+                          aria-haspopup="listbox"
+                          aria-activedescendant={cabanaMenuOpen && cabanas[activeCabanaIndex] ? `cabana-option-${activeCabanaIndex}` : undefined}
+                          onClick={() => { setActiveCabanaIndex(0); setCabanaMenuOpen(open => !open) }}
+                          onKeyDown={handleCabanaKeyDown}
+                          disabled={!settings?.enabled || isRefreshing}
+                        >
+                          <span>{selectedCabana?.name || (isRefreshing ? 'Loading cabanas…' : 'Select an available cabana')}</span>
+                          <FiChevronDown size={16} aria-hidden="true"/>
+                        </button>
+                        {cabanaMenuOpen && (
+                          <div id="cabana-options" className="ticket-quantity-options" role="listbox" aria-label={`${cabanaType === 'cabana_regular' ? 'Regular' : 'Premium'} cabanas`}>
+                            {cabanas.map((option, index) => (
+                              <button
+                                key={option.name}
+                                id={`cabana-option-${index}`}
+                                type="button"
+                                role="option"
+                                aria-selected={cabanaName === option.name}
+                                aria-disabled={!option.available}
+                                tabIndex={-1}
+                                className={`ticket-quantity-option cabana-picker-option${option.available ? '' : ' unavailable'}${cabanaName === option.name ? ' selected' : ''}${activeCabanaIndex === index ? ' active' : ''}`}
+                                onMouseEnter={() => setActiveCabanaIndex(index)}
+                                onClick={() => {
+                                  if (option.available) {
+                                    setCabanaName(option.name)
+                                    setCabanaMenuOpen(false)
+                                    cabanaTriggerRef.current?.focus()
+                                  }
+                                }}
+                              >
+                                <span>{option.name}</span>
+                                <span className="cabana-option-status">{option.available ? 'AVAILABLE' : 'ALREADY TAKEN'}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                    <label className="ticket-form-label" htmlFor="cabana-name">Full name
+                      <input id="cabana-name" className="field ticket-form-input" autoComplete="name" required maxLength={100} value={fullName} onChange={event => setFullName(event.target.value)} />
+                    </label>
+                    <label className="ticket-form-label" htmlFor="cabana-email">Email address
+                      <input id="cabana-email" className="field ticket-form-input" type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} />
+                    </label>
+                    <label className="ticket-form-label" htmlFor="cabana-phone">Phone number
+                      <input id="cabana-phone" className="field ticket-form-input" type="tel" autoComplete="tel" required value={phone} onChange={event => setPhone(event.target.value)} />
+                    </label>
+                    {error && <p role="alert" className="ticket-dialog-error">{error}</p>}
+                    {!settings?.enabled && !error && (
+                      <p role="status" className="ticket-dialog-error">Cabana reservations are temporarily unavailable. Please contact Groove Garden for assistance.</p>
+                    )}
+                    {reference && error && (
+                      <button type="button" className="ticket-dialog-secondary-button" disabled={isBusy} onClick={() => { void confirmReservationPayment(reference) }}>
+                        {isBusy ? 'Checking payment…' : 'Check payment again'}
+                      </button>
+                    )}
+                    <button type="submit" className="ticket-dialog-primary-button" disabled={isBusy || !settings?.enabled || !selectedCabana?.available || Boolean(reference)}>
+                      {isBusy ? 'Opening secure payment…' : <>Continue to secure payment <FiArrowRight size={15}/></>}
+                    </button>
+                    <p className="ticket-payment-note"><span aria-hidden="true">●</span> First come, first served. Your cabana is held for five minutes while payment is completed.</p>
+                  </form>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        modalRoot,
+      )}
+    </>
+  )
+}
+
 function UpcomingEvent({
   flyer,
   edition,
@@ -1991,9 +2410,7 @@ function UpcomingEvent({
 
             <div className="event-action-buttons">
               <TicketPurchase/>
-              <Link href="/contact" className="btn btn-fire">
-                <span>Reserve a Cabana</span><FiArrowRight size={13}/>
-              </Link>
+              <CabanaReservation/>
               <Link href="/gallery" className="btn btn-outline">
                 View The Vibe
               </Link>

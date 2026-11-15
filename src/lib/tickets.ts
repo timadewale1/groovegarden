@@ -28,6 +28,8 @@ export type IssuedTicket = {
   event_date: string
   quantity: number
   amount_kobo: number
+  ticket_type: 'entry' | 'cabana_regular' | 'cabana_premium'
+  cabana_name: string | null
 }
 
 export type TicketRedemption = {
@@ -37,6 +39,8 @@ export type TicketRedemption = {
   event_name: string | null
   event_date: string | null
   used_at: string | null
+  ticket_type: 'entry' | 'cabana_regular' | 'cabana_premium' | null
+  cabana_name: string | null
 }
 
 type TicketOrderPayment = {
@@ -52,6 +56,8 @@ type TicketOrderPayment = {
   event_name: string
   event_date: string
   tickets: Array<{ ticket_code: string; slot_number: number }>
+  ticket_type: 'entry' | 'cabana_regular' | 'cabana_premium'
+  cabana_name: string | null
 }
 
 type TicketOrderForEmail = {
@@ -63,6 +69,14 @@ type TicketOrderForEmail = {
   event_date: string
   quantity: number
   amount_kobo: number
+  ticket_type: 'entry' | 'cabana_regular' | 'cabana_premium'
+  cabana_name: string | null
+}
+
+export type CabanaAvailability = {
+  name: string
+  ticketType: 'cabana_regular' | 'cabana_premium'
+  available: boolean
 }
 
 export type TicketPaymentVerification =
@@ -115,6 +129,24 @@ function hasRequiredSettings() {
   )
 }
 
+function hasRequiredCabanaSettings() {
+  const eventName = process.env.TICKET_EVENT_NAME?.trim()
+  const eventDate = process.env.TICKET_EVENT_DATE?.trim()
+
+  return Boolean(
+    process.env.PAYSTACK_PUBLIC_KEY &&
+    process.env.PAYSTACK_SECRET_KEY &&
+    process.env.SUPABASE_URL &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.GG_MAIL_USER &&
+    process.env.GG_MAIL_PASS &&
+    eventName &&
+    !/placeholder|tba|to be announced/i.test(eventName) &&
+    eventDate &&
+    isValidFutureDate(eventDate),
+  )
+}
+
 export function getPublicTicketSettings(): TicketSettings {
   const eventName = process.env.TICKET_EVENT_NAME?.trim()
   const eventDate = process.env.TICKET_EVENT_DATE?.trim()
@@ -143,6 +175,23 @@ export function requireTicketSettings() {
     eventDate: process.env.TICKET_EVENT_DATE!.trim(),
     eventTime: process.env.TICKET_EVENT_TIME?.trim() || '9 PM till Sunrise',
     ticketPriceNaira: getTicketPrice()!,
+    paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY!,
+  }
+}
+
+function requireCabanaSettings() {
+  if (!hasRequiredCabanaSettings()) {
+    throw new Error('Cabana reservations are not configured yet.')
+  }
+  const payment = requirePaymentInfrastructure()
+  const eventName = process.env.TICKET_EVENT_NAME?.trim()
+  const eventDate = process.env.TICKET_EVENT_DATE?.trim()
+
+  return {
+    ...payment,
+    eventName: eventName!,
+    eventDate: eventDate!,
+    eventTime: process.env.TICKET_EVENT_TIME?.trim() || '9 PM till Sunrise',
     paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY!,
   }
 }
@@ -225,6 +274,31 @@ async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise
   return response.json() as Promise<T>
 }
 
+export async function getPublicCabanaSettings() {
+  const cabanas = await supabaseRequest<Array<{
+    name: string
+    ticket_type: 'cabana_regular' | 'cabana_premium'
+    booking_reference: string | null
+    booking_event_date: string | null
+    reserved_until: string | null
+    booked_at: string | null
+  }>>('cabanas?select=name,ticket_type,booking_reference,booking_event_date,reserved_until,booked_at&order=name.asc')
+  const settings = hasRequiredCabanaSettings() ? requireCabanaSettings() : null
+
+  return {
+    enabled: settings !== null,
+    eventName: settings?.eventName || 'Next Groove Garden event',
+    eventDate: settings?.eventDate || 'To be announced',
+    eventTime: settings?.eventTime || '9 PM till Sunrise',
+    cabanas: cabanas.map(cabana => ({
+      name: cabana.name,
+      ticketType: cabana.ticket_type,
+      available: cabana.booking_event_date !== settings?.eventDate ||
+        (!cabana.booked_at && (!cabana.reserved_until || Date.parse(cabana.reserved_until) <= Date.now())),
+    })),
+  }
+}
+
 export async function createPendingTicketOrder(input: {
   fullName: string
   email: string
@@ -267,6 +341,41 @@ export async function createPendingTicketOrder(input: {
   return { reference, amountKobo, publicKey: settings.paystackPublicKey }
 }
 
+export async function createPendingCabanaOrder(input: {
+  fullName: string
+  email: string
+  phone: string
+  cabanaName: string
+}) {
+  const settings = requireCabanaSettings()
+  const reference = `GG-${randomUUID()}`
+  const reservations = await supabaseRequest<Array<{ available: boolean; amount_kobo: number | null }>>(
+    'rpc/reserve_cabana_order',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_cabana_name: input.cabanaName,
+        p_reference: reference,
+        p_full_name: input.fullName,
+        p_email: input.email,
+        p_phone: input.phone,
+        p_event_name: settings.eventName,
+        p_event_date: settings.eventDate,
+      }),
+    },
+  )
+  const reservation = reservations[0]
+  if (!reservation?.available || typeof reservation.amount_kobo !== 'number') {
+    return null
+  }
+
+  return {
+    reference,
+    amountKobo: reservation.amount_kobo,
+    publicKey: settings.paystackPublicKey,
+  }
+}
+
 type PaystackVerification = {
   status: boolean
   data?: {
@@ -281,7 +390,7 @@ type PaystackVerification = {
 export async function verifyAndIssueTickets(reference: string): Promise<TicketPaymentVerification> {
   const settings = requirePaymentInfrastructure()
   const orders = await supabaseRequest<TicketOrderPayment[]>(
-    `ticket_orders?reference=eq.${encodeURIComponent(reference)}&select=id,reference,email,amount_kobo,currency,quantity,status,full_name,phone,event_name,event_date,tickets(ticket_code,slot_number)`,
+    `ticket_orders?reference=eq.${encodeURIComponent(reference)}&select=id,reference,email,amount_kobo,currency,quantity,status,full_name,phone,event_name,event_date,ticket_type,cabana_name,tickets(ticket_code,slot_number)`,
   )
   const order = orders[0]
   if (!order) throw new Error('Ticket order was not found.')
@@ -302,6 +411,8 @@ export async function verifyAndIssueTickets(reference: string): Promise<TicketPa
         event_date: order.event_date,
         quantity: order.quantity,
         amount_kobo: order.amount_kobo,
+        ticket_type: order.ticket_type,
+        cabana_name: order.cabana_name,
       })),
     }
   }
@@ -370,7 +481,14 @@ export async function verifyAndIssueTickets(reference: string): Promise<TicketPa
     throw new Error('Ticket records could not be confirmed.')
   }
 
-  return { status: 'paid', tickets }
+  return {
+    status: 'paid',
+    tickets: tickets.map(ticket => ({
+      ...ticket,
+      ticket_type: order.ticket_type,
+      cabana_name: order.cabana_name,
+    })),
+  }
 }
 
 export async function redeemTicket(ticketCode: string) {
@@ -429,6 +547,8 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
       eventName: ticket.event_name,
       eventDate: formattedEventDate,
       eventTime,
+      ticketType: ticket.ticket_type,
+      cabanaName: ticket.cabana_name,
       logoDataUri: `data:image/png;base64,${logo.toString('base64')}`,
       qrDataUri: `data:image/png;base64,${(await QRCode.toBuffer(
         isPreview ? 'PREVIEW-NOT-VALID' : ticket.ticket_code,
@@ -438,6 +558,7 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
   })))
   const ticketCards = ticketImages.map(({ ticket, cid }) => `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;border:1px solid #e85d04;border-radius:12px;border-collapse:separate;border-spacing:0;">
+      ${ticket.cabana_name ? `<tr><td style="padding:12px 14px 4px;background:#fffaf0;color:#172c42;font:bold 16px Arial,sans-serif;">${escapeHtml(ticket.ticket_type === 'cabana_premium' ? 'PREMIUM CABANA' : 'REGULAR CABANA')}: ${escapeHtml(ticket.cabana_name)}</td></tr>` : ''}
       <tr><td align="center" style="padding:8px;background:#fffaf0;border-radius:11px;">
         <img src="cid:${cid}" alt="Groove Garden ticket for ${escapeHtml(ticket.full_name)}; ticket ID ${escapeHtml(ticket.ticket_code)}; includes logo and QR code" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;" />
       </td></tr>
@@ -451,8 +572,12 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
     from: process.env.GG_MAIL_USER,
     to: options.to || firstTicket.email,
     subject: isPreview
-      ? `Groove Garden ticket design preview - ${firstTicket.event_name}`
-      : `Your Groove Garden ticket${tickets.length > 1 ? 's' : ''} - ${firstTicket.event_name}`,
+      ? firstTicket.ticket_type === 'entry'
+        ? `Groove Garden entry ticket design preview - ${firstTicket.event_name}`
+        : `Updated Groove Garden ${firstTicket.ticket_type === 'cabana_premium' ? 'premium' : 'regular'} cabana ticket preview - ${firstTicket.cabana_name}`
+      : firstTicket.ticket_type === 'entry'
+        ? `Your Groove Garden ticket${tickets.length > 1 ? 's' : ''} - ${firstTicket.event_name}`
+        : `Your ${firstTicket.ticket_type === 'cabana_premium' ? 'premium' : 'regular'} cabana reservation - ${firstTicket.cabana_name}`,
     attachments: [
       ...ticketImages.map(({ ticket, cid, content }) => ({
         filename: `groove-garden-ticket-display-${ticket.ticket_code}.png`,
@@ -479,13 +604,22 @@ async function sendTicketEmail(tickets: IssuedTicket[], options: { to?: string; 
       `Email: ${firstTicket.email}`,
       `Phone: ${firstTicket.phone}`,
       `Tickets: ${tickets.length}`,
+      ...(firstTicket.cabana_name
+        ? [`Cabana type: ${firstTicket.ticket_type === 'cabana_premium' ? 'Premium' : 'Regular'}`]
+        : []),
+      ...(firstTicket.cabana_name ? [`Cabana: ${firstTicket.cabana_name}`] : []),
+      ...(firstTicket.cabana_name
+        ? [`Entry tags included: ${firstTicket.ticket_type === 'cabana_premium' ? 15 : 10}`]
+        : []),
       ...(isPreview
         ? [`Ticket price shown in the design: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')}`]
         : [`Amount paid: NGN ${(firstTicket.amount_kobo / 100).toLocaleString('en-NG')}`]),
       `Ticket IDs: ${tickets.map(ticket => ticket.ticket_code).join(', ')}`,
       ...(isPreview ? ['PREVIEW ONLY - This ticket and QR code are not valid for entry.'] : []),
       `A downloadable PNG copy of each ticket is attached to this email.`,
-      'Each ticket is valid for one entry only and can be used once at the gate.',
+      firstTicket.cabana_name
+        ? `This cabana reservation includes ${firstTicket.ticket_type === 'cabana_premium' ? 15 : 10} entry tags. Present the QR code at the gate for your group.`
+        : 'Each ticket is valid for one entry only and can be used once at the gate.',
       'For more enquiries or payment issues, contact groovegardenhq@gmail.com and our team will assist you.',
       `View event details: ${createTicketEventDetailsUrl()}`,
       'Groove Garden',
@@ -524,7 +658,44 @@ export async function sendTicketDesignPreview(recipient: string) {
     event_date: eventDate,
     quantity: 1,
     amount_kobo: price * 100,
+    ticket_type: 'entry',
+    cabana_name: null,
   }], { to: recipient, preview: true })
+}
+
+export async function sendCabanaTicketDesignPreviews(recipient: string) {
+  const eventName = process.env.TICKET_EVENT_NAME?.trim()
+  const eventDate = process.env.TICKET_EVENT_DATE?.trim()
+  if (!eventName || !eventDate || !process.env.GG_MAIL_USER || !process.env.GG_MAIL_PASS) {
+    throw new Error('Cabana ticket preview email settings are incomplete.')
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    throw new Error('A valid preview email recipient is required.')
+  }
+
+  const previews: Array<{
+    ticket_type: 'cabana_regular' | 'cabana_premium'
+    cabana_name: string
+    amount_kobo: number
+  }> = [
+    { ticket_type: 'cabana_regular', cabana_name: 'Annex 1', amount_kobo: 100000 * 100 },
+    { ticket_type: 'cabana_premium', cabana_name: 'Platinum 1', amount_kobo: 200000 * 100 },
+  ]
+
+  for (const preview of previews) {
+    await sendTicketEmail([{
+      ticket_code: 'PREVIEW',
+      full_name: 'Cabana Reservation Preview',
+      email: recipient,
+      phone: '',
+      event_name: eventName,
+      event_date: eventDate,
+      quantity: 1,
+      amount_kobo: preview.amount_kobo,
+      ticket_type: preview.ticket_type,
+      cabana_name: preview.cabana_name,
+    }], { to: recipient, preview: true })
+  }
 }
 
 export async function emailTicketsIfNeeded(reference: string, tickets: IssuedTicket[]) {
@@ -562,7 +733,7 @@ export async function emailTicketsIfNeeded(reference: string, tickets: IssuedTic
 
 export async function emailPaidOrderTickets(reference: string) {
   const orders = await supabaseRequest<TicketOrderForEmail[]>(
-    `ticket_orders?reference=eq.${encodeURIComponent(reference)}&status=eq.paid&select=id,full_name,email,phone,event_name,event_date,quantity,amount_kobo`,
+    `ticket_orders?reference=eq.${encodeURIComponent(reference)}&status=eq.paid&select=id,full_name,email,phone,event_name,event_date,quantity,amount_kobo,ticket_type,cabana_name`,
   )
   const order = orders[0]
   if (!order) throw new Error('Ticket payment is not confirmed.')
@@ -589,7 +760,7 @@ export async function getPaidTicketForDownload(ticketCode: string) {
   if (!ticket) return null
 
   const orders = await supabaseRequest<TicketOrderForEmail[]>(
-    `ticket_orders?id=eq.${encodeURIComponent(ticket.order_id)}&status=eq.paid&select=id,full_name,email,phone,event_name,event_date,quantity,amount_kobo`,
+    `ticket_orders?id=eq.${encodeURIComponent(ticket.order_id)}&status=eq.paid&select=id,full_name,email,phone,event_name,event_date,quantity,amount_kobo,ticket_type,cabana_name`,
   )
   const order = orders[0]
   if (!order) return null

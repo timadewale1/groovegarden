@@ -41,15 +41,24 @@ export async function POST(request: Request) {
       tickets: payment.tickets.map(ticket => ({
         ticketCode: ticket.ticket_code,
         downloadUrl: createTicketDownloadPath(ticket.ticket_code),
+        ticketType: ticket.ticket_type,
+        cabanaName: ticket.cabana_name,
       })),
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     console.error('Ticket payment verification failed.')
     const message = error instanceof Error ? error.message : ''
+    const cabanaConflict = message.includes('Cabana hold expired or is no longer available')
     const invalidPayment = message.includes('could not be verified') || message.includes('not found')
     return NextResponse.json(
-      { error: invalidPayment ? message : 'Payment verification is unavailable. Please retry shortly.' },
-      { status: invalidPayment ? 400 : 502 },
+      {
+        error: cabanaConflict
+          ? 'Paystack confirmed your payment, but this cabana is no longer available. Do not pay again; contact groovegardenhq@gmail.com for assistance.'
+          : invalidPayment
+            ? message
+            : 'Payment verification is unavailable. Please retry shortly.',
+      },
+      { status: cabanaConflict ? 409 : invalidPayment ? 400 : 502 },
     )
   }
 }
