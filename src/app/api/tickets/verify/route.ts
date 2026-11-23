@@ -46,8 +46,12 @@ export async function POST(request: Request) {
       })),
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
-    console.error('Ticket payment verification failed.')
     const message = error instanceof Error ? error.message : ''
+    const safeMessage = message
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+      .replace(/\bGG-[A-Z0-9-]{8,}\b/gi, '[reference]')
+      .slice(0, 200)
+    console.error('Ticket payment verification failed.', { reason: safeMessage || 'Unknown error' })
     const cabanaConflict = message.includes('Cabana hold expired or is no longer available')
     const invalidPayment = message.includes('could not be verified') || message.includes('not found')
     return NextResponse.json(

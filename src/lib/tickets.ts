@@ -110,13 +110,29 @@ function getTicketPrice() {
   return Number.isSafeInteger(price) && price > 0 ? price : null
 }
 
+function getPaystackKeyMode() {
+  const publicKey = process.env.PAYSTACK_PUBLIC_KEY?.trim() || ''
+  const secretKey = process.env.PAYSTACK_SECRET_KEY?.trim() || ''
+  const publicMode = publicKey.startsWith('pk_test_')
+    ? 'test'
+    : publicKey.startsWith('pk_live_')
+      ? 'live'
+      : null
+  const secretMode = secretKey.startsWith('sk_test_')
+    ? 'test'
+    : secretKey.startsWith('sk_live_')
+      ? 'live'
+      : null
+
+  return publicMode && publicMode === secretMode ? publicMode : null
+}
+
 function hasRequiredSettings() {
   const eventName = process.env.TICKET_EVENT_NAME?.trim()
   const eventDate = process.env.TICKET_EVENT_DATE?.trim()
 
   return Boolean(
-    process.env.PAYSTACK_PUBLIC_KEY &&
-    process.env.PAYSTACK_SECRET_KEY &&
+    getPaystackKeyMode() &&
     process.env.SUPABASE_URL &&
     process.env.SUPABASE_SERVICE_ROLE_KEY &&
     process.env.GG_MAIL_USER &&
@@ -134,8 +150,7 @@ function hasRequiredCabanaSettings() {
   const eventDate = process.env.TICKET_EVENT_DATE?.trim()
 
   return Boolean(
-    process.env.PAYSTACK_PUBLIC_KEY &&
-    process.env.PAYSTACK_SECRET_KEY &&
+    getPaystackKeyMode() &&
     process.env.SUPABASE_URL &&
     process.env.SUPABASE_SERVICE_ROLE_KEY &&
     process.env.GG_MAIL_USER &&
@@ -165,6 +180,9 @@ export function getPublicTicketSettings(): TicketSettings {
 }
 
 export function requireTicketSettings() {
+  if (!getPaystackKeyMode()) {
+    throw new Error('Paystack public and secret keys must both use the same test or live mode.')
+  }
   if (!hasRequiredSettings()) {
     throw new Error('Ticket sales are not configured yet.')
   }
@@ -180,6 +198,9 @@ export function requireTicketSettings() {
 }
 
 function requireCabanaSettings() {
+  if (!getPaystackKeyMode()) {
+    throw new Error('Paystack public and secret keys must both use the same test or live mode.')
+  }
   if (!hasRequiredCabanaSettings()) {
     throw new Error('Cabana reservations are not configured yet.')
   }
@@ -208,14 +229,97 @@ function requireSupabaseInfrastructure() {
 
 function requirePaymentInfrastructure() {
   const supabase = requireSupabaseInfrastructure()
-  if (!process.env.PAYSTACK_SECRET_KEY) {
-    throw new Error('Ticket payment services are not configured.')
+  if (!process.env.PAYSTACK_SECRET_KEY || !getPaystackKeyMode()) {
+    throw new Error('Paystack public and secret keys must both use the same test or live mode.')
   }
 
   return {
     ...supabase,
     paystackSecretKey: process.env.PAYSTACK_SECRET_KEY,
   }
+}
+
+export type TicketReconciliationResult = {
+  checked: number
+  paidOrders: number
+  ticketsConfirmed: number
+  emailsSent: number
+  waitingForPaystack: number
+  failedPayments: number
+  emailPending: number
+  errors: number
+}
+
+const RECONCILIATION_BATCH_SIZE = 5
+const RECONCILIATION_MIN_AGE_MS = 2 * 60 * 1000
+
+export async function reconcilePendingTicketOrders(): Promise<TicketReconciliationResult> {
+  const cutoff = new Date(Date.now() - RECONCILIATION_MIN_AGE_MS).toISOString()
+  const stalePendingOrders = await supabaseRequest<Array<{ reference: string }>>(
+    `ticket_orders?status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&select=reference&order=created_at.asc&limit=${RECONCILIATION_BATCH_SIZE}`,
+  )
+  const slotsLeft = RECONCILIATION_BATCH_SIZE - stalePendingOrders.length
+  const unsentPaidOrders = slotsLeft > 0
+    ? await supabaseRequest<Array<{ reference: string }>>(
+      `ticket_orders?status=eq.paid&email_sent_at=is.null&paid_at=lt.${encodeURIComponent(cutoff)}&select=reference&order=paid_at.asc&limit=${slotsLeft}`,
+    )
+    : []
+  const orders = [
+    ...stalePendingOrders.map(order => ({ ...order, wasPending: true })),
+    ...unsentPaidOrders.map(order => ({ ...order, wasPending: false })),
+  ]
+  const result: TicketReconciliationResult = {
+    checked: orders.length,
+    paidOrders: 0,
+    ticketsConfirmed: 0,
+    emailsSent: 0,
+    waitingForPaystack: 0,
+    failedPayments: 0,
+    emailPending: 0,
+    errors: 0,
+  }
+
+  await Promise.all(orders.map(async order => {
+    try {
+      if (order.wasPending) {
+        const payment = await verifyAndIssueTickets(order.reference)
+        if (payment.status === 'pending') {
+          result.waitingForPaystack += 1
+          return
+        }
+        if (payment.status === 'failed') {
+          result.failedPayments += 1
+          return
+        }
+
+        result.paidOrders += 1
+        result.ticketsConfirmed += payment.tickets.length
+        if (await emailTicketsIfNeeded(order.reference, payment.tickets)) {
+          result.emailsSent += 1
+        } else {
+          result.emailPending += 1
+        }
+        return
+      }
+
+      if (await emailPaidOrderTickets(order.reference)) {
+        result.emailsSent += 1
+      } else {
+        result.emailPending += 1
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      console.error('Ticket payment reconciliation item failed.', {
+        message: message
+          .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+          .replace(/\bGG-[A-Z0-9-]{8,}\b/gi, '[reference]')
+          .slice(0, 200) || 'Unknown error',
+      })
+      result.errors += 1
+    }
+  }))
+
+  return result
 }
 
 function supabaseHeaders() {

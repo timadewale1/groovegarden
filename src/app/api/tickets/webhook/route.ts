@@ -40,8 +40,15 @@ export async function POST(request: Request) {
       await emailTicketsIfNeeded(payload.data.reference, payment.tickets)
     }
     return NextResponse.json({ received: true })
-  } catch {
-    console.error('Paystack ticket webhook processing failed.')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    const safeMessage = message
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+      .replace(/\bGG-[A-Z0-9-]{8,}\b/gi, '[reference]')
+      .slice(0, 200)
+    console.error('Paystack ticket webhook processing failed.', {
+      reason: safeMessage || 'Unknown error',
+    })
     return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 })
   }
 }

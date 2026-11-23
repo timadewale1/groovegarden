@@ -48,8 +48,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(order, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
-    console.error('Ticket order initialization failed.')
     const message = error instanceof Error ? error.message : ''
+    const safeMessage = message
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+      .replace(/\bGG-[A-Z0-9-]{8,}\b/gi, '[reference]')
+      .slice(0, 200)
+    console.error('Ticket order initialization failed.', { reason: safeMessage || 'Unknown error' })
     const unavailable = message.includes('not configured')
     return NextResponse.json(
       { error: unavailable ? message : 'Could not start ticket checkout. Please try again.' },

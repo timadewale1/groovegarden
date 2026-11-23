@@ -29,6 +29,17 @@ type DashboardFilters = {
   scan: 'all' | 'scanned' | 'not-scanned'
 }
 
+type ReconciliationResult = {
+  checked: number
+  paidOrders: number
+  ticketsConfirmed: number
+  emailsSent: number
+  waitingForPaystack: number
+  failedPayments: number
+  emailPending: number
+  errors: number
+}
+
 const initialFilters: DashboardFilters = {
   page: 1,
   pageSize: 25,
@@ -73,7 +84,9 @@ export default function NumbersDashboardClient() {
   const [data, setData] = useState<NumbersDashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
+  const [isReconciling, setIsReconciling] = useState(false)
   const [error, setError] = useState('')
+  const [reconciliationMessage, setReconciliationMessage] = useState('')
 
   useEffect(() => {
     fetch('/api/numbers/session', { cache: 'no-store' })
@@ -164,6 +177,54 @@ export default function NumbersDashboardClient() {
       setAuthenticated(false)
       setData(null)
       setError('')
+    }
+  }
+
+  const reconcilePayments = async () => {
+    setIsReconciling(true)
+    setReconciliationMessage('')
+    setError('')
+    try {
+      const response = await fetch('/api/numbers/reconcile', {
+        method: 'POST',
+        cache: 'no-store',
+      })
+      const body = await response.json() as { error?: unknown } & Partial<ReconciliationResult>
+      if (!response.ok) {
+        if (response.status === 401) setAuthenticated(false)
+        throw new Error(typeof body.error === 'string' ? body.error : 'Payment reconciliation failed.')
+      }
+      if (
+        typeof body.checked !== 'number' ||
+        typeof body.paidOrders !== 'number' ||
+        typeof body.ticketsConfirmed !== 'number' ||
+        typeof body.emailsSent !== 'number' ||
+        typeof body.waitingForPaystack !== 'number' ||
+        typeof body.failedPayments !== 'number' ||
+        typeof body.emailPending !== 'number' ||
+        typeof body.errors !== 'number'
+      ) {
+        throw new Error('Payment reconciliation returned an invalid response.')
+      }
+
+      const result = body as ReconciliationResult
+      const summary = [
+        `${result.checked} order${result.checked === 1 ? '' : 's'} checked`,
+        `${result.paidOrders} paid order${result.paidOrders === 1 ? '' : 's'} confirmed`,
+        `${result.ticketsConfirmed} ticket${result.ticketsConfirmed === 1 ? '' : 's'} ready`,
+        `${result.emailsSent} email${result.emailsSent === 1 ? '' : 's'} delivered`,
+      ]
+      if (result.waitingForPaystack) summary.push(`${result.waitingForPaystack} still awaiting Paystack`)
+      if (result.failedPayments) summary.push(`${result.failedPayments} payment${result.failedPayments === 1 ? '' : 's'} failed`)
+      if (result.emailPending) summary.push(`${result.emailPending} email${result.emailPending === 1 ? '' : 's'} still pending`)
+      if (result.errors) summary.push(`${result.errors} order${result.errors === 1 ? '' : 's'} need attention`)
+      setReconciliationMessage(summary.join(' · '))
+      const controller = new AbortController()
+      await loadData(controller.signal)
+    } catch (reconcileError) {
+      setError(reconcileError instanceof Error ? reconcileError.message : 'Payment reconciliation failed.')
+    } finally {
+      setIsReconciling(false)
     }
   }
 
@@ -261,6 +322,10 @@ export default function NumbersDashboardClient() {
               <p className="numbers-intro">Paid tickets, cabana reservations, and door check-ins across your events.</p>
             </div>
             <div className="numbers-heading-actions">
+              <button type="button" className="numbers-secondary-button" onClick={() => { void reconcilePayments() }} disabled={isReconciling}>
+                <FiRefreshCw size={14} className={isReconciling ? 'numbers-reconcile-spinner' : undefined}/>
+                {isReconciling ? 'Checking payments…' : 'Check pending payments'}
+              </button>
               <button type="button" className="numbers-secondary-button" onClick={() => { if (!isLoading) void loadData(new AbortController().signal) }} disabled={isLoading}>
                 <FiRefreshCw size={14}/> Refresh
               </button>
@@ -269,6 +334,10 @@ export default function NumbersDashboardClient() {
               </button>
             </div>
           </section>
+
+          {reconciliationMessage && (
+            <p role="status" className="numbers-reconcile-message">{reconciliationMessage}</p>
+          )}
 
           <section className="numbers-summary-grid" aria-label="Ticket sales totals">
             <article className="numbers-summary-card">

@@ -1742,6 +1742,18 @@ body {
   padding: clamp(2.5rem, 6vw, 5rem) 0 2rem;
 }
 .numbers-heading-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.numbers-reconcile-message {
+  margin: -0.5rem 0 1.1rem;
+  padding: 0.8rem 1rem;
+  color: #b7e5c4;
+  border: 1px solid rgba(148,227,173,0.22);
+  border-radius: 7px;
+  background: rgba(57,130,79,0.1);
+  font-size: 0.62rem;
+  line-height: 1.7;
+}
+.numbers-reconcile-spinner { animation: numbers-reconcile-spin 1s linear infinite; }
+@keyframes numbers-reconcile-spin { to { transform: rotate(360deg); } }
 .numbers-secondary-button {
   min-height: 38px;
   color: var(--cream-75);
@@ -1951,4 +1963,9 @@ body {
   .numbers-records-heading { align-items: flex-start; flex-direction: column; }
   .numbers-footer { align-items: flex-start; flex-direction: column; }
   .numbers-table tr { grid-template-columns: 1fr 1fr; }
+  .numbers-heading-actions { width: 100%; }
+  .numbers-heading-actions button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .numbers-reconcile-spinner { animation: none; }
 }
