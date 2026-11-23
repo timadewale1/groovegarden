@@ -6,6 +6,8 @@ import {
   verifyAndIssueTickets,
 } from '@/lib/tickets'
 
+export const maxDuration = 60
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
   if (!isValidPaystackSignature(rawBody, request.headers.get('x-paystack-signature'))) {
@@ -37,6 +39,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Transaction is not final yet.' }, { status: 503 })
     }
     if (payment.status === 'paid') {
+      // Keep the webhook retryable if email delivery fails. The paid state and
+      // ticket rows are idempotent, so a retry cannot create duplicate tickets.
       await emailTicketsIfNeeded(payload.data.reference, payment.tickets)
     }
     return NextResponse.json({ received: true })

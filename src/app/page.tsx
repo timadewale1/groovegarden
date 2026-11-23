@@ -1401,9 +1401,11 @@ function TicketPurchase() {
     setIsBusy(true)
     setError(checkoutCancelled ? 'Checkout was closed. Checking Paystack for the final payment status…' : '')
     try {
-      const maxAttempts = 7
+      // Check immediately, then poll quickly while Paystack settles the charge.
+      // The server remains the source of truth for payment confirmation.
+      const retryDelaysMs = [500, 750, 1_000, 1_500, 2_000, 3_000, 4_000, 5_000, 5_000]
       let transientFailures = 0
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      for (let attempt = 0; attempt <= retryDelaysMs.length; attempt++) {
         let response: Response
         let result: {
           ok?: unknown
@@ -1421,8 +1423,8 @@ function TicketPurchase() {
           result = await response.json() as typeof result
         } catch (requestError) {
           transientFailures += 1
-          if (transientFailures >= 2 || attempt === maxAttempts - 1) throw requestError
-          await new Promise(resolve => window.setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)))
+          if (transientFailures >= 3 || attempt === retryDelaysMs.length) throw requestError
+          await new Promise(resolve => window.setTimeout(resolve, retryDelaysMs[attempt]))
           continue
         }
 
@@ -1432,8 +1434,8 @@ function TicketPurchase() {
           return
         }
         if (result.status === 'pending' && response.status === 202) {
-          if (attempt < maxAttempts - 1) {
-            await new Promise(resolve => window.setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)))
+          if (attempt < retryDelaysMs.length) {
+            await new Promise(resolve => window.setTimeout(resolve, retryDelaysMs[attempt]))
             continue
           }
           setError(checkoutCancelled
@@ -1442,9 +1444,9 @@ function TicketPurchase() {
           return
         }
         if (!response.ok || result.ok !== true || result.status !== 'paid') {
-          if (response.status >= 500 && attempt < maxAttempts - 1 && transientFailures < 1) {
+          if (response.status >= 500 && attempt < retryDelaysMs.length && transientFailures < 2) {
             transientFailures += 1
-            await new Promise(resolve => window.setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)))
+            await new Promise(resolve => window.setTimeout(resolve, retryDelaysMs[attempt]))
             continue
           }
           throw new Error(typeof result.error === 'string' ? result.error : 'Payment verification failed. You can safely check again; tickets are issued only after Paystack confirms payment.')

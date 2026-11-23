@@ -5,6 +5,8 @@ import {
 } from '@/lib/tickets'
 import { createTicketDownloadPath } from '@/lib/ticket-download'
 
+export const maxDuration = 60
+
 export async function POST(request: Request) {
   let body: unknown
   try {
