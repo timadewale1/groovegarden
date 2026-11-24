@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import {
   emailTicketsIfNeeded,
   isValidPaystackSignature,
@@ -10,7 +10,7 @@ export const maxDuration = 60
 
 export async function POST(request: Request) {
   const rawBody = await request.text()
-  if (!isValidPaystackSignature(rawBody, request.headers.get('x-paystack-signature'))) {
+  if (!isValidPaystackSignature(rawBody, request.headers)) {
     return NextResponse.json({ error: 'Invalid webhook signature.' }, { status: 401 })
   }
 
@@ -33,26 +33,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid transaction reference.' }, { status: 400 })
   }
 
-  try {
-    const payment = await verifyAndIssueTickets(payload.data.reference)
-    if (payment.status === 'pending') {
-      return NextResponse.json({ error: 'Transaction is not final yet.' }, { status: 503 })
+  const reference = payload.data.reference
+  after(async () => {
+    try {
+      const payment = await verifyAndIssueTickets(reference)
+      if (payment.status === 'paid') await emailTicketsIfNeeded(reference, payment.tickets)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      const safeMessage = message
+        .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+        .replace(/\bGG-[A-Z0-9-]{8,}\b/gi, '[reference]')
+        .slice(0, 200)
+      console.error('Paystack ticket webhook processing failed after acknowledgement.', {
+        reason: safeMessage || 'Unknown error',
+      })
     }
-    if (payment.status === 'paid') {
-      // Keep the webhook retryable if email delivery fails. The paid state and
-      // ticket rows are idempotent, so a retry cannot create duplicate tickets.
-      await emailTicketsIfNeeded(payload.data.reference, payment.tickets)
-    }
-    return NextResponse.json({ received: true })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : ''
-    const safeMessage = message
-      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
-      .replace(/\bGG-[A-Z0-9-]{8,}\b/gi, '[reference]')
-      .slice(0, 200)
-    console.error('Paystack ticket webhook processing failed.', {
-      reason: safeMessage || 'Unknown error',
-    })
-    return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 })
-  }
+  })
+
+  // Paystack requires a quick 2xx acknowledgement. Fulfilment is idempotent
+  // and remains recoverable through the admin reconciliation check.
+  return NextResponse.json({ received: true })
 }

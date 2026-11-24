@@ -251,7 +251,7 @@ export type TicketReconciliationResult = {
 }
 
 const RECONCILIATION_BATCH_SIZE = 5
-const RECONCILIATION_MIN_AGE_MS = 2 * 60 * 1000
+const RECONCILIATION_MIN_AGE_MS = 0
 
 export async function reconcilePendingTicketOrders(): Promise<TicketReconciliationResult> {
   const cutoff = new Date(Date.now() - RECONCILIATION_MIN_AGE_MS).toISOString()
@@ -486,6 +486,7 @@ type PaystackVerification = {
     status?: string
     reference?: string
     amount?: number
+    requested_amount?: number
     currency?: string
     customer?: { email?: string }
   }
@@ -529,7 +530,21 @@ export async function verifyAndIssueTickets(reference: string): Promise<TicketPa
       signal: AbortSignal.timeout(TICKET_REQUEST_TIMEOUT_MS),
     },
   )
-  if (!response.ok) throw new Error('Could not verify payment with Paystack.')
+  if (!response.ok) {
+    const responseBody = await response.text()
+    let providerMessage = ''
+    try {
+      const parsed = JSON.parse(responseBody) as { message?: unknown; code?: unknown }
+      providerMessage = [parsed.message, parsed.code].filter(value => typeof value === 'string').join(' ')
+    } catch {
+      // Keep malformed provider responses out of the user-facing error.
+    }
+    console.error('Paystack transaction verification request failed.', {
+      status: response.status,
+      reason: providerMessage.slice(0, 160) || 'No provider message',
+    })
+    throw new Error('Could not verify payment with Paystack.')
+  }
 
   let verification: PaystackVerification
   try {
@@ -563,8 +578,13 @@ export async function verifyAndIssueTickets(reference: string): Promise<TicketPa
     return { status: 'pending' }
   }
 
+  // When Paystack is configured to pass fees to the customer, `amount` is the
+  // gross amount charged while `requested_amount` remains the merchant price.
+  // Require the requested price to match exactly and reject underpayments.
   if (
-    payment.amount !== order.amount_kobo ||
+    payment.requested_amount !== order.amount_kobo ||
+    typeof payment.amount !== 'number' ||
+    payment.amount < order.amount_kobo ||
     payment.currency !== order.currency ||
     payment.currency !== 'NGN'
   ) {
@@ -575,7 +595,7 @@ export async function verifyAndIssueTickets(reference: string): Promise<TicketPa
     method: 'POST',
     body: JSON.stringify({
       p_reference: order.reference,
-      p_amount_kobo: payment.amount,
+      p_amount_kobo: order.amount_kobo,
       p_currency: payment.currency,
       p_email: verifiedEmail,
     }),
@@ -876,11 +896,30 @@ export function isValidTicketReference(reference: unknown): reference is string 
   return typeof reference === 'string' && /^[A-Za-z0-9._=-]{1,100}$/.test(reference)
 }
 
-export function isValidPaystackSignature(body: string, signature: string | null) {
-  const secret = process.env.PAYSTACK_SECRET_KEY
-  if (!secret || !signature || !/^[a-f0-9]{128}$/i.test(signature)) return false
+export function isValidPaystackSignature(body: string, headers: Headers) {
+  const timestampedSignature = headers.get('paystack-signature')
+  const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET?.trim()
 
+  if (timestampedSignature && webhookSecret) {
+    const fields = timestampedSignature.split(',')
+    const timestamp = fields.find(field => field.startsWith('t='))?.slice(2)
+    const signatures = fields
+      .filter(field => field.startsWith('v1='))
+      .map(field => field.slice(3).split(':').pop() || '')
+      .filter(signature => /^[a-f0-9]{128}$/i.test(signature))
+    const timestampSeconds = Number(timestamp)
+    if (!timestamp || !Number.isInteger(timestampSeconds) || Math.abs(Date.now() / 1000 - timestampSeconds) > 300) return false
+    const expected = createHmac('sha512', webhookSecret).update(`${timestamp}.${body}`).digest()
+    return signatures.some(signature => {
+      const received = Buffer.from(signature, 'hex')
+      return received.length === expected.length && timingSafeEqual(received, expected)
+    })
+  }
+
+  const secret = process.env.PAYSTACK_SECRET_KEY
+  const legacySignature = headers.get('x-paystack-signature')
+  if (!secret || !legacySignature || !/^[a-f0-9]{128}$/i.test(legacySignature)) return false
   const expected = createHmac('sha512', secret).update(body).digest()
-  const received = Buffer.from(signature, 'hex')
+  const received = Buffer.from(legacySignature, 'hex')
   return received.length === expected.length && timingSafeEqual(received, expected)
 }
