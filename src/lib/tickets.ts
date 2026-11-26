@@ -106,8 +106,20 @@ function getTicketPrice() {
   const rawPrice = process.env.TICKET_PRICE_NGN
   if (!rawPrice || !/^\d+$/.test(rawPrice)) return null
 
-  const price = Number(rawPrice)
-  return Number.isSafeInteger(price) && price > 0 ? price : null
+  const basePrice = Number(rawPrice)
+  if (!Number.isSafeInteger(basePrice) || basePrice <= 0) return null
+
+  const afterCutoffRaw = process.env.TICKET_PRICE_NGN_AFTER_CUTOFF || '5000'
+  const afterCutoffPrice = /^\d+$/.test(afterCutoffRaw) ? Number(afterCutoffRaw) : null
+  const eventDate = process.env.TICKET_EVENT_DATE?.trim()
+  const cutoffRaw = process.env.TICKET_PRICE_CHANGE_AT?.trim()
+  const cutoff = cutoffRaw || (eventDate ? `${eventDate}T14:00:00+01:00` : '')
+  const cutoffTime = cutoff ? Date.parse(cutoff) : Number.NaN
+
+  return afterCutoffPrice && Number.isSafeInteger(afterCutoffPrice) && afterCutoffPrice > 0 &&
+    Number.isFinite(cutoffTime) && Date.now() >= cutoffTime
+    ? afterCutoffPrice
+    : basePrice
 }
 
 function getPaystackKeyMode() {

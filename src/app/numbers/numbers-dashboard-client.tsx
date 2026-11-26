@@ -124,7 +124,7 @@ export default function NumbersDashboardClient() {
         if (response.status === 401) setAuthenticated(false)
         throw new Error(typeof body.error === 'string' ? body.error : 'Dashboard data could not be loaded.')
       }
-      if (!Array.isArray(body.tickets) || !body.pagination || !body.summary) {
+      if (!Array.isArray(body.tickets) || !Array.isArray(body.cabanas) || !body.pagination || !body.summary) {
         throw new Error('Dashboard returned an invalid response.')
       }
       setData(body as NumbersDashboardData)
@@ -364,6 +364,34 @@ export default function NumbersDashboardClient() {
               <strong>{data?.summary.premiumCabanas ?? '—'}</strong>
               <small>Paid reservations</small>
             </article>
+          </section>
+
+          <section className="numbers-records">
+            <div className="numbers-records-heading">
+              <div>
+                <div className="numbers-eyebrow"><span/> CABANA SALES</div>
+                <h2>Cabana reservations</h2>
+                <p>Booked cabanas for the selected event, including manual reservations.</p>
+              </div>
+              <span className="numbers-type-badge entry">{data?.cabanas.length ?? 0} sold</span>
+            </div>
+            <div className="numbers-table-scroll">
+              <table className="numbers-table">
+                <thead><tr><th>Cabana</th><th>Type</th><th>Price</th><th>Status</th><th>Booked</th></tr></thead>
+                <tbody>
+                  {data?.cabanas.map(cabana => (
+                    <tr key={cabana.name}>
+                      <td data-label="Cabana"><strong>{cabana.name}</strong><small>{cabana.booking_reference || 'Manual reservation'}</small></td>
+                      <td data-label="Type"><span className={`numbers-type-badge ${cabana.ticket_type}`}>{ticketTypeLabel(cabana.ticket_type)}</span></td>
+                      <td data-label="Price"><strong>{formatNaira(cabana.price_naira * 100)}</strong></td>
+                      <td data-label="Status"><span className="numbers-scan-badge scanned">Sold</span></td>
+                      <td data-label="Booked">{formatDateTime(cabana.booked_at)}</td>
+                    </tr>
+                  ))}
+                  {!isLoading && !data?.cabanas.length && <tr><td className="numbers-empty" colSpan={5}>No cabanas sold for this event.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           <section className="numbers-records">

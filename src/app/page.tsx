@@ -2202,6 +2202,9 @@ function UpcomingEvent({
 }) {
   const isWhistleFiesta = edition.key === 'whistle-fiesta' && isWhistleFiestaWindow()
   const isCarnival = edition.key === 'groove-garden-carnival-2026'
+  const ticketLabel = isCarnival
+    ? '₦3,000 online until Monday 2 PM · ₦5,000 after'
+    : edition.ticket
 
   return (
     <section id="upcoming-event" className={`sec upcoming-event-section${isCarnival ? ' carnival-edition' : ''}`} style={{
@@ -2380,12 +2383,14 @@ function UpcomingEvent({
             )}
             <span className="div-fire" style={{ marginBottom:'3rem' }}/>
 
+            {isCarnival && <PriceCountdown dateKey={edition.dateKey}/>}
+
             <div className="event-details-list">
               {[
                 { icon:<RiMapPin2Line size={14}/>, label:'Venue', val:edition.venue },
                 { icon:<PiStarFill size={12}/>, label:'Date', val:edition.dateLabel },
                 { icon:<PiMusicNoteFill size={12}/>, label:'Time', val:edition.time },
-                { icon:<PiLeafFill size={12}/>, label:'Ticket', val:edition.ticket },
+                { icon:<PiLeafFill size={12}/>, label:'Ticket', val:ticketLabel },
                 { icon:<PiTreePalm size={12}/>, label:'Cabana', val:edition.cabana },
                 { icon:<PiMusicNoteFill size={12}/>, label:'Line Up', val:edition.lineUp },
               ].map(({ icon, label, val }, i) => (
@@ -2427,6 +2432,65 @@ function UpcomingEvent({
         </div>
       </div>
     </section>
+  )
+}
+
+function PriceCountdown({ dateKey }: { dateKey: string }) {
+  const [remaining, setRemaining] = useState<number | null>(null)
+  const cutoff = new Date(`${dateKey}T14:00:00+01:00`).getTime()
+
+  useEffect(() => {
+    const update = () => setRemaining(Math.max(0, cutoff - Date.now()))
+    update()
+    const timer = window.setInterval(update, 1000)
+    return () => window.clearInterval(timer)
+  }, [cutoff])
+
+  const totalSeconds = remaining === null ? null : Math.floor(remaining / 1000)
+  const days = totalSeconds === null ? '--' : String(Math.floor(totalSeconds / 86_400)).padStart(2, '0')
+  const hours = totalSeconds === null ? '--' : String(Math.floor((totalSeconds % 86_400) / 3_600)).padStart(2, '0')
+  const minutes = totalSeconds === null ? '--' : String(Math.floor((totalSeconds % 3_600) / 60)).padStart(2, '0')
+  const seconds = totalSeconds === null ? '--' : String(totalSeconds % 60).padStart(2, '0')
+  const isLive = totalSeconds === null || totalSeconds > 0
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        marginBottom: '2rem',
+        padding: '1.25rem 1.35rem',
+        border: '1px solid rgba(255,111,55,0.7)',
+        background: 'linear-gradient(135deg, rgba(255,111,55,0.2), rgba(20,14,9,0.8))',
+        boxShadow: '0 16px 40px rgba(255,82,34,0.18), inset 0 0 24px rgba(255,255,255,0.03)',
+      }}
+    >
+      <p style={{ fontFamily:'var(--f-mono)', fontSize:'0.6rem', letterSpacing:'0.2em', color:'var(--fire-bright)', marginBottom:'0.5rem' }}>
+        LIMITED DISCOUNT TICKETS AVAILABLE
+      </p>
+      {isLive ? (
+        <>
+          <strong style={{ display:'block', fontFamily:'var(--f-display)', fontSize:'clamp(1.35rem, 3vw, 2rem)', color:'var(--cream)', lineHeight:1.05 }}>
+            ₦3,000 price ends in
+          </strong>
+          <div style={{ display:'flex', alignItems:'baseline', gap:'0.55rem', marginTop:'0.8rem', fontFamily:'var(--f-mono)', color:'var(--cream)' }}>
+            {[['DAYS', days], ['HRS', hours], ['MIN', minutes], ['SEC', seconds]].map(([label, value]) => (
+              <span key={label} style={{ display:'inline-flex', flexDirection:'column', gap:'0.18rem' }}>
+                <strong style={{ fontSize:'clamp(1.25rem, 3vw, 2rem)', letterSpacing:'0.04em' }}>{value}</strong>
+                <small style={{ fontSize:'0.48rem', letterSpacing:'0.14em', color:'rgba(240,235,224,0.58)' }}>{label}</small>
+              </span>
+            ))}
+          </div>
+          <p style={{ marginTop:'0.8rem', fontFamily:'var(--f-mono)', fontSize:'0.58rem', color:'rgba(240,235,224,0.72)' }}>
+            At Monday 2:00 PM, tickets move to ₦5,000.
+          </p>
+        </>
+      ) : (
+        <strong style={{ display:'block', fontFamily:'var(--f-display)', fontSize:'clamp(1.35rem, 3vw, 2rem)', color:'var(--cream)' }}>
+          Discount window closed · tickets are now ₦5,000
+        </strong>
+      )}
+    </div>
   )
 }
 

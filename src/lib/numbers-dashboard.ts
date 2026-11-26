@@ -21,6 +21,7 @@ export type NumbersTicket = {
 
 export type NumbersDashboardData = {
   tickets: NumbersTicket[]
+  cabanas: NumbersCabana[]
   pagination: {
     page: number
     pageSize: number
@@ -34,6 +35,15 @@ export type NumbersDashboardData = {
     regularCabanas: number
     premiumCabanas: number
   }
+}
+
+export type NumbersCabana = {
+  name: string
+  ticket_type: 'cabana_regular' | 'cabana_premium'
+  price_naira: number
+  booking_reference: string | null
+  booking_event_date: string | null
+  booked_at: string | null
 }
 
 const TICKET_COLUMNS =
@@ -89,6 +99,25 @@ async function fetchTicketCount(baseUrl: string, key: string, type?: string, sca
   return total
 }
 
+async function fetchBookedCabanas(baseUrl: string, key: string, eventDate: string) {
+  const params = new URLSearchParams({
+    select: 'name,ticket_type,price_naira,booking_reference,booking_event_date,booked_at',
+    booked_at: 'not.is.null',
+    order: 'name.asc',
+  })
+  if (eventDate) params.set('booking_event_date', `eq.${eventDate}`)
+  const response = await fetch(`${baseUrl}/rest/v1/cabanas?${params.toString()}`, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(12_000),
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  })
+  if (!response.ok) {
+    console.error('Numbers dashboard cabana query failed.', { status: response.status })
+    throw new Error('Cabana sales records could not be loaded.')
+  }
+  return await response.json() as NumbersCabana[]
+}
+
 export async function getNumbersDashboardData(input: {
   page: number
   pageSize: number
@@ -98,6 +127,7 @@ export async function getNumbersDashboardData(input: {
   scan: 'all' | 'scanned' | 'not-scanned'
 }): Promise<NumbersDashboardData> {
   const { url, key } = getSupabaseConfig()
+  const eventDate = input.eventDate || process.env.TICKET_EVENT_DATE?.trim() || ''
   const params = new URLSearchParams({
     select: TICKET_COLUMNS,
     'ticket_orders.status': 'eq.paid',
@@ -119,25 +149,31 @@ export async function getNumbersDashboardData(input: {
   if (input.scan !== 'all') params.set('used_at', input.scan === 'scanned' ? 'not.is.null' : 'is.null')
 
   const start = (input.page - 1) * input.pageSize
-  const [pageResult, sold, scanned, notScanned, regularCabanas, premiumCabanas] = await Promise.all([
+  const [pageResult, cabanas, sold, scanned, notScanned] = await Promise.all([
     fetchTicketRows(buildUrl(url, params), key, start, start + input.pageSize - 1),
+    fetchBookedCabanas(url, key, eventDate),
     fetchTicketCount(url, key),
     fetchTicketCount(url, key, undefined, true),
     fetchTicketCount(url, key, undefined, false),
-    fetchTicketCount(url, key, 'cabana_regular'),
-    fetchTicketCount(url, key, 'cabana_premium'),
   ])
   const totalPages = Math.max(1, Math.ceil(pageResult.total / input.pageSize))
 
   return {
     tickets: pageResult.tickets,
+    cabanas,
     pagination: {
       page: input.page,
       pageSize: input.pageSize,
       total: pageResult.total,
       totalPages,
     },
-    summary: { sold, scanned, notScanned, regularCabanas, premiumCabanas },
+    summary: {
+      sold,
+      scanned,
+      notScanned,
+      regularCabanas: cabanas.filter(cabana => cabana.ticket_type === 'cabana_regular').length,
+      premiumCabanas: cabanas.filter(cabana => cabana.ticket_type === 'cabana_premium').length,
+    },
   }
 }
 
