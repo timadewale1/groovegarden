@@ -2481,8 +2481,8 @@ function PriceCountdown({ dateKey }: { dateKey: string }) {
               </span>
             ))}
           </div>
-          <p style={{ marginTop:'0.8rem', fontFamily:'var(--f-mono)', fontSize:'0.58rem', color:'rgba(240,235,224,0.72)' }}>
-            At Monday 2:00 PM, tickets move to ₦5,000.
+          <p style={{ marginTop:'0.8rem', fontFamily:'var(--f-mono)', fontSize:'clamp(0.72rem, 1.5vw, 0.9rem)', fontWeight:700, letterSpacing:'0.04em', color:'var(--cream)' }}>
+            At Monday 2:00 PM, tickets move to <strong style={{ fontSize:'1.3em', color:'var(--fire-bright)', fontWeight:900 }}>₦5,000</strong>.
           </p>
         </>
       ) : (
